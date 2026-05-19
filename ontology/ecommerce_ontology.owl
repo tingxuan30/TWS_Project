@@ -4,10 +4,10 @@
 @prefix xs: <http://www.w3.org/2001/XMLSchema#> .
 @prefix : <http://www.example.org/ecommerce#> .
 
-# Define the ontology
 : a owl:Ontology .
 
-# Product hierarchy (subclass relationships)
+:Product a owl:Class .
+
 :Electronics a owl:Class .
 :Laptop a owl:Class ;
     rdfs:subClassOf :Electronics .
@@ -18,7 +18,10 @@
 :GamingLaptop a owl:Class ;
     rdfs:subClassOf :Laptop .
 
-# Compatibility relationship
-:compatibleWith a owl:ObjectProperty ;
-    rdfs:domain :Product ;
-    rdfs:range :Product .
+:compatibleWith a owl:ObjectProperty .
+
+:name a owl:DatatypeProperty .
+:brand a owl:DatatypeProperty .
+:price a owl:DatatypeProperty .
+:category a owl:DatatypeProperty .
+:inStock a owl:DatatypeProperty .
