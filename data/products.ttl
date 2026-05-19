@@ -1,0 +1,42 @@
+@prefix : <http://www.example.org/ecommerce#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# Products
+:prod001 rdf:type :GamingLaptop ;
+    :name "ASUS ROG Zephyrus" ;
+    :brand "ASUS" ;
+    :price "1499"^^xs:decimal ;
+    :category "Gaming" ;
+    :inStock "true"^^xs:boolean .
+
+:prod002 rdf:type :Smartphone ;
+    :name "iPhone 14 Pro" ;
+    :brand "Apple" ;
+    :price "999"^^xs:decimal ;
+    :category "Flagship" ;
+    :inStock "true"^^xs:boolean .
+
+:prod003 rdf:type :Smartphone ;
+    :name "Samsung Galaxy S23" ;
+    :brand "Samsung" ;
+    :price "799"^^xs:decimal ;
+    :category "Flagship" ;
+    :inStock "true"^^xs:boolean .
+
+:prod004 rdf:type :Accessory ;
+    :name "USB-C Fast Charger" ;
+    :brand "Anker" ;
+    :price "29"^^xs:decimal ;
+    :category "Chargers" ;
+    :inStock "true"^^xs:boolean .
+
+:prod005 rdf:type :Laptop ;
+    :name "Dell XPS 13" ;
+    :brand "Dell" ;
+    :price "1299"^^xs:decimal ;
+    :category "Ultrabook" ;
+    :inStock "true"^^xs:boolean .
+
+# Define compatibility relationships (for recommendations)
+:prod002 :compatibleWith :prod004 .
+:prod003 :compatibleWith :prod004 .

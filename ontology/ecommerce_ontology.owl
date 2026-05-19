@@ -1,0 +1,24 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xs: <http://www.w3.org/2001/XMLSchema#> .
+@prefix : <http://www.example.org/ecommerce#> .
+
+# Define the ontology
+: a owl:Ontology .
+
+# Product hierarchy (subclass relationships)
+:Electronics a owl:Class .
+:Laptop a owl:Class ;
+    rdfs:subClassOf :Electronics .
+:Smartphone a owl:Class ;
+    rdfs:subClassOf :Electronics .
+:Accessory a owl:Class ;
+    rdfs:subClassOf :Electronics .
+:GamingLaptop a owl:Class ;
+    rdfs:subClassOf :Laptop .
+
+# Compatibility relationship
+:compatibleWith a owl:ObjectProperty ;
+    rdfs:domain :Product ;
+    rdfs:range :Product .
