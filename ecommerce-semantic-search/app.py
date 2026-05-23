@@ -11,8 +11,8 @@ import pandas as pd
 def load_data():
     """Load RDF data and ontology"""
     g = rdflib.Graph()
-    g.parse("data/products.ttl", format="turtle")
-    g.parse("ontology/ecommerce_ontology.owl", format="turtle")
+    g.parse("data/books.ttl", format="turtle")
+    g.parse("ontology/book_ontology.owl", format="turtle")
     return g
 
 # ---------------------------
@@ -21,12 +21,10 @@ def load_data():
 @st.cache_resource
 def load_ontology_and_reason():
     """Load ontology and run reasoner to infer new relationships"""
-    onto = get_ontology("ontology/ecommerce_ontology.owl").load()
-    # Load individuals from RDF data
-    # (This would typically be done by converting RDF to Owlready2 format)
+    onto = get_ontology("ontology/book_ontology.owl").load()
     
     # Run HermiT reasoner to infer classifications
-    # Example: A GamingLaptop will be inferred as a Laptop and Electronics
+    # Example: A FantasyNovel will be inferred as a Book and Fiction
     sync_reasoner()  # Runs HermiT by default
     
     return onto
@@ -35,34 +33,38 @@ def load_ontology_and_reason():
 # 3. SPARQL QUERY FUNCTIONS
 # ---------------------------
 def search_by_keyword(graph, keyword):
-    """Search products by name or brand using SPARQL"""
+    """Search books by title, author, or genre using SPARQL"""
     query = f"""
-    PREFIX : <http://www.example.org/ecommerce#>
-    SELECT ?product ?name ?brand ?price WHERE {{
-        ?product rdf:type :Product ;
-                 :name ?name ;
-                 :brand ?brand ;
+    PREFIX : <http://www.example.org/bookstore#>
+    SELECT ?book ?title ?author ?genre ?price WHERE {{
+        ?book rdf:type :Book ;
+                 :title ?title ;
+                 :author ?author ;
+                 :genre ?genre ;
                  :price ?price .
-        FILTER(CONTAINS(LCASE(?name), LCASE("{keyword}")) || 
-               CONTAINS(LCASE(?brand), LCASE("{keyword}")))
+        FILTER(CONTAINS(LCASE(?title), LCASE("{keyword}")) || 
+               CONTAINS(LCASE(?author), LCASE("{keyword}")) ||
+               CONTAINS(LCASE(?genre), LCASE("{keyword}")))
     }}
     """
     results = []
     for row in graph.query(query):
         results.append({
-            "Product": str(row.product).split("#")[-1],
-            "Name": str(row.name),
-            "Brand": str(row.brand),
-            "Price": float(row.price)
+            "Book": str(row.book).split("#")[-1],
+            "Title": str(row.title),
+            "Author": str(row.author),
+            "Genre": str(row.genre),
+            "Price (RM)": float(row.price)
         })
     return pd.DataFrame(results)
 
 def filter_by_price(graph, min_price, max_price):
-    """Filter products within price range [citation:5]"""
+    """Filter books within price range"""
     query = f"""
-    PREFIX : <http://www.example.org/ecommerce#>
-    SELECT ?product ?name ?price WHERE {{
-        ?product :name ?name ;
+    PREFIX : <http://www.example.org/bookstore#>
+    SELECT ?book ?title ?author ?price WHERE {{
+        ?book :title ?title ;
+                 :author ?author ;
                  :price ?price .
         FILTER(?price >= {min_price} && ?price <= {max_price})
     }}
@@ -71,45 +73,98 @@ def filter_by_price(graph, min_price, max_price):
     results = []
     for row in graph.query(query):
         results.append({
-            "Product": str(row.product).split("#")[-1],
-            "Name": str(row.name),
-            "Price": float(row.price)
+            "Book": str(row.book).split("#")[-1],
+            "Title": str(row.title),
+            "Author": str(row.author),
+            "Price (RM)": float(row.price)
         })
     return pd.DataFrame(results)
 
-def get_compatible_products(graph, product_name):
-    """Find products compatible with a given product using OWL property"""
+def get_similar_books(graph, book_title):
+    """Find books similar to a given book using OWL property (same author or genre)"""
     query = f"""
-    PREFIX : <http://www.example.org/ecommerce#>
-    SELECT ?product ?compatible_name WHERE {{
-        ?product :name "{product_name}" ;
-                 :compatibleWith ?compatible .
-        ?compatible :name ?compatible_name .
+    PREFIX : <http://www.example.org/bookstore#>
+    SELECT ?book ?similar_title ?author ?genre WHERE {{
+        ?book :title "{book_title}" ;
+                 :author ?author ;
+                 :genre ?genre .
+        ?similar_book :title ?similar_title ;
+                      :author ?author ;
+                      :genre ?genre .
+        FILTER(?similar_title != "{book_title}")
     }}
+    LIMIT 10
     """
     results = []
     for row in graph.query(query):
-        results.append(str(row.compatible_name))
-    return results
+        results.append({
+            "Title": str(row.similar_title),
+            "Author": str(row.author),
+            "Genre": str(row.genre)
+        })
+    return pd.DataFrame(results)
 
-def get_products_by_category(graph, category):
-    """Get all products in a category (with OWL inference)"""
-    # Note: With reasoning, this will also return subcategory products
+def get_books_by_genre(graph, genre):
+    """Get all books in a genre (with OWL inference)"""
+    # With reasoning, this will also return subgenre books
     query = f"""
-    PREFIX : <http://www.example.org/ecommerce#>
+    PREFIX : <http://www.example.org/bookstore#>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    SELECT ?product ?name ?price WHERE {{
-        ?product rdf:type/rdfs:subClassOf* :{category} ;
-                 :name ?name ;
+    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    SELECT ?book ?title ?author ?price WHERE {{
+        ?book rdf:type/rdfs:subClassOf* :{genre} ;
+                 :title ?title ;
+                 :author ?author ;
                  :price ?price .
     }}
     """
     results = []
     for row in graph.query(query):
         results.append({
-            "Product": str(row.product).split("#")[-1],
-            "Name": str(row.name),
-            "Price": float(row.price)
+            "Book": str(row.book).split("#")[-1],
+            "Title": str(row.title),
+            "Author": str(row.author),
+            "Price (RM)": float(row.price)
+        })
+    return pd.DataFrame(results)
+
+def get_books_by_author(graph, author_name):
+    """Get all books by a specific author"""
+    query = f"""
+    PREFIX : <http://www.example.org/bookstore#>
+    SELECT ?book ?title ?genre ?price WHERE {{
+        ?book :title ?title ;
+                 :author "{author_name}" ;
+                 :genre ?genre ;
+                 :price ?price .
+    }}
+    """
+    results = []
+    for row in graph.query(query):
+        results.append({
+            "Title": str(row.title),
+            "Genre": str(row.genre),
+            "Price (RM)": float(row.price)
+        })
+    return pd.DataFrame(results)
+
+def get_bestseller_recommendations(graph):
+    """Get books marked as bestsellers (using OWL inference)"""
+    query = f"""
+    PREFIX : <http://www.example.org/bookstore#>
+    SELECT ?book ?title ?author ?price WHERE {{
+        ?book rdf:type :Bestseller ;
+                 :title ?title ;
+                 :author ?author ;
+                 :price ?price .
+    }}
+    """
+    results = []
+    for row in graph.query(query):
+        results.append({
+            "Title": str(row.title),
+            "Author": str(row.author),
+            "Price (RM)": float(row.price)
         })
     return pd.DataFrame(results)
 
@@ -117,87 +172,130 @@ def get_products_by_category(graph, category):
 # 4. STREAMLIT UI
 # ---------------------------
 def main():
-    st.set_page_config(page_title="Semantic Product Search", layout="wide")
+    st.set_page_config(page_title="Semantic Book Search Engine", layout="wide", page_icon="📚")
     
-    st.title("Semantic Product Search Engine")
-    st.markdown("Using **RDF + SPARQL + OWL Inference**")
+    st.title("📚 Semantic Book Search Engine")
+    st.markdown("Using **RDF + SPARQL + OWL Inference** for Intelligent Book Discovery")
+    st.caption("Find books by title, author, genre, price range, or get AI‑powered recommendations")
     
     # Load data
-    with st.spinner("Loading product catalog..."):
+    with st.spinner("Loading book catalog from semantic knowledge graph..."):
         graph = load_data()
     
     # Sidebar navigation
-    st.sidebar.header("Search Options")
+    st.sidebar.header("🔍 Search Options")
     search_type = st.sidebar.radio(
         "Choose search method:",
-        ["Keyword Search", "Price Range", "Category Browse", "Compatibility"]
+        ["Keyword Search", "Price Range", "Browse by Genre", "Browse by Author", "Similar Books", "Bestsellers"]
     )
     
     # 1. KEYWORD SEARCH
     if search_type == "Keyword Search":
-        st.subheader("Search Products by Name or Brand")
-        keyword = st.text_input("Enter product name or brand:", "iPhone")
+        st.subheader("🔎 Search Books by Title, Author, or Genre")
+        keyword = st.text_input("Enter book title, author name, or genre:", "Harry Potter")
         if keyword:
             df = search_by_keyword(graph, keyword)
             if not df.empty:
                 st.dataframe(df, use_container_width=True)
-                st.success(f"Found {len(df)} products")
+                st.success(f"📖 Found {len(df)} books matching '{keyword}'")
+                
+                # Show genre distribution
+                if "Genre" in df.columns:
+                    st.caption("Genre distribution:")
+                    st.dataframe(df["Genre"].value_counts().reset_index().rename(columns={"index": "Genre", "Genre": "Count"}))
             else:
-                st.warning("No products found")
+                st.warning("No books found. Try a different keyword.")
     
     # 2. PRICE FILTER
     elif search_type == "Price Range":
-        st.subheader("Filter Products by Price")
+        st.subheader("💰 Filter Books by Price")
         col1, col2 = st.columns(2)
         with col1:
-            min_price = st.number_input("Min Price (RM)", min_value=0, value=0)
+            min_price = st.number_input("Min Price (RM)", min_value=0, value=0, step=5)
         with col2:
-            max_price = st.number_input("Max Price (RM)", min_value=0, value=2000)
+            max_price = st.number_input("Max Price (RM)", min_value=0, value=100, step=5)
         
-        if st.button("Search"):
+        if st.button("🔍 Search", type="primary"):
             df = filter_by_price(graph, min_price, max_price)
             if not df.empty:
                 st.dataframe(df, use_container_width=True)
-                # Show summary statistics
-                st.metric("Average Price", f"RM{df['Price'].mean():.2f}")
-                st.metric("Total Products", len(df))
+                col_a, col_b, col_c = st.columns(3)
+                with col_a:
+                    st.metric("📊 Average Price", f"RM{df['Price (RM)'].mean():.2f}")
+                with col_b:
+                    st.metric("📚 Total Books", len(df))
+                with col_c:
+                    st.metric("💵 Cheapest Book", f"RM{df['Price (RM)'].min():.2f}")
             else:
-                st.warning("No products in this price range")
+                st.warning("No books found in this price range.")
     
-    # 3. CATEGORY BROWSE (Demonstrates OWL Inference)
-    elif search_type == "Category Browse":
-        st.subheader("Browse by Category")
-        st.info("**Semantic Intelligence**: Searching 'Electronics' also returns Laptops, Smartphones, and Accessories due to OWL subclass inference!")
+    # 3. BROWSE BY GENRE (Demonstrates OWL Inference)
+    elif search_type == "Browse by Genre":
+        st.subheader("📖 Browse Books by Genre")
+        st.info("✨ **Semantic Intelligence**: Searching 'Fiction' also returns Fantasy, Mystery, and Science Fiction due to OWL subclass inference!")
         
-        categories = ["Electronics", "Laptop", "Smartphone", "Accessory", "GamingLaptop"]
-        category = st.selectbox("Select category:", categories)
+        genres = ["Book", "Fiction", "NonFiction", "Fantasy", "Mystery", "ScienceFiction", "Biography", "Technical"]
+        genre = st.selectbox("Select a genre:", genres)
         
-        if category:
-            df = get_products_by_category(graph, category)
+        if genre:
+            df = get_books_by_genre(graph, genre)
             if not df.empty:
                 st.dataframe(df, use_container_width=True)
-                st.caption(f"Showing {len(df)} products in '{category}' and its subcategories")
+                st.caption(f"📚 Showing {len(df)} books in '{genre}' and its subgenres (inferred via OWL reasoning)")
+                
+                # Show unique authors count
+                unique_authors = df["Author"].nunique()
+                st.metric("✍️ Unique Authors", unique_authors)
             else:
-                st.warning("No products in this category")
+                st.warning("No books found in this genre.")
     
-    # 4. COMPATIBILITY RECOMMENDATIONS
-    elif search_type == "Compatibility":
-        st.subheader("Find Compatible Accessories")
-        products = ["iPhone 14 Pro", "Samsung Galaxy S23", "ASUS ROG Zephyrus", "Dell XPS 13", "USB-C Fast Charger"]
-        selected = st.selectbox("Select a product:", products)
+    # 4. BROWSE BY AUTHOR
+    elif search_type == "Browse by Author":
+        st.subheader("✍️ Browse Books by Author")
         
-        if selected:
-            compatible = get_compatible_products(graph, selected)
-            if compatible:
-                st.success(f"Products compatible with {selected}:")
-                for item in compatible:
-                    st.write(f"• {item}")
+        # Sample authors (you can also query this dynamically from RDF)
+        authors = ["J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien", "Dan Brown", "Yuval Noah Harari"]
+        author_name = st.selectbox("Select an author:", authors)
+        
+        if author_name:
+            df = get_books_by_author(graph, author_name)
+            if not df.empty:
+                st.dataframe(df, use_container_width=True)
+                st.success(f"Found {len(df)} books by {author_name}")
             else:
-                st.info("No compatibility information available for this product")
+                st.warning(f"No books found by {author_name}")
+    
+    # 5. SIMILAR BOOKS (Recommendation)
+    elif search_type == "Similar Books":
+        st.subheader("🔗 Find Similar Books")
+        st.caption("Based on same author or genre — powered by semantic relationships")
+        
+        popular_books = ["Harry Potter and the Sorcerer's Stone", "A Game of Thrones", "The Hobbit", "The Da Vinci Code", "Sapiens"]
+        book_title = st.selectbox("Select a book you like:", popular_books)
+        
+        if book_title:
+            df = get_similar_books(graph, book_title)
+            if not df.empty:
+                st.success(f"📖 Readers who liked '{book_title}' also enjoyed:")
+                st.dataframe(df, use_container_width=True)
+            else:
+                st.info("No similar books found in the catalog yet.")
+    
+    # 6. BESTSELLERS (OWL Inference demo)
+    elif search_type == "Bestsellers":
+        st.subheader("⭐ Bestseller Recommendations")
+        st.info("🏆 These books are classified as Bestsellers using OWL reasoning")
+        
+        df = get_bestseller_recommendations(graph)
+        if not df.empty:
+            st.dataframe(df, use_container_width=True)
+            st.balloons()
+        else:
+            st.warning("No bestseller data available.")
     
     # Footer with project info
     st.markdown("---")
-    st.caption("Powered by RDFlib, Owlready2, and Streamlit")
+    st.caption("📚 **Semantic Book Store** | Powered by RDFlib, Owlready2, Streamlit | RDF + SPARQL + OWL Inference")
 
 if __name__ == "__main__":
     main()

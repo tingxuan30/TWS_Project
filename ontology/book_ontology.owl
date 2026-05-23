@@ -1,0 +1,36 @@
+@prefix : <http://www.example.org/bookstore#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+# Class hierarchy
+:Book rdf:type owl:Class .
+
+:Fiction rdf:type owl:Class ;
+        rdfs:subClassOf :Book .
+
+:NonFiction rdf:type owl:Class ;
+           rdfs:subClassOf :Book .
+
+:Fantasy rdf:type owl:Class ;
+        rdfs:subClassOf :Fiction .
+
+:Mystery rdf:type owl:Class ;
+        rdfs:subClassOf :Fiction .
+
+:ScienceFiction rdf:type owl:Class ;
+               rdfs:subClassOf :Fiction .
+
+:Biography rdf:type owl:Class ;
+          rdfs:subClassOf :NonFiction .
+
+:Technical rdf:type owl:Class ;
+          rdfs:subClassOf :NonFiction .
+
+# Bestseller class (inferred)
+:Bestseller rdf:type owl:Class ;
+            rdfs:subClassOf :Book .
+
+# Individuals (bestsellers)
+:HarryPotter1 rdf:type :Bestseller .
+:Sapiens rdf:type :Bestseller .

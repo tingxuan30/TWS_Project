@@ -1,0 +1,41 @@
+@prefix : <http://www.example.org/bookstore#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+:HarryPotter1 rdf:type :Book ;
+              :title "Harry Potter and the Sorcerer's Stone" ;
+              :author "J.K. Rowling" ;
+              :genre "Fantasy" ;
+              :price "29.90"^^xsd:decimal ;
+              :isbn "9780439708180" .
+
+:HarryPotter2 rdf:type :Book ;
+              :title "Harry Potter and the Chamber of Secrets" ;
+              :author "J.K. Rowling" ;
+              :genre "Fantasy" ;
+              :price "32.50"^^xsd:decimal .
+
+:GameOfThrones rdf:type :Book ;
+               :title "A Game of Thrones" ;
+               :author "George R.R. Martin" ;
+               :genre "Fantasy" ;
+               :price "45.00"^^xsd:decimal .
+
+:TheHobbit rdf:type :Book ;
+           :title "The Hobbit" ;
+           :author "J.R.R. Tolkien" ;
+           :genre "Fantasy" ;
+           :price "35.90"^^xsd:decimal .
+
+:Sapiens rdf:type :Book ;
+         :title "Sapiens" ;
+         :author "Yuval Noah Harari" ;
+         :genre "NonFiction" ;
+         :price "59.90"^^xsd:decimal .
+
+:DaVinciCode rdf:type :Book ;
+             :title "The Da Vinci Code" ;
+             :author "Dan Brown" ;
+             :genre "Mystery" ;
+             :price "42.00"^^xsd:decimal .
