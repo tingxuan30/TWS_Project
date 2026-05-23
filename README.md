@@ -21,7 +21,7 @@ pip list | findstr "streamlit rdflib owlready pandas"
 
 ### Step 5: Run the Application (terminal)
 ### ---------------------------
-Don't forget to put it in the "ecommerce-semantic-search" folder first!
+Don't forget to put it in the "ecommerce-semantic-search" folder first
 cd ecommerce-semantic-search
 python -m streamlit run app.py
 
