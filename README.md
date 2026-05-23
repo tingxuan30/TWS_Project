@@ -3,8 +3,8 @@
 ### Step 1: Create and Setup Project
 ### ---------------------------------
 mkdir ecommerce-semantic-search
-\ncd ecommerce-semantic-search
-\npython -m venv venv
+cd ecommerce-semantic-search
+python -m venv venv
 
 ### Step 2: Activate Virtual Environment
 ### -----------------------------------------------
