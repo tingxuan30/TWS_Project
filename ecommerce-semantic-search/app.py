@@ -119,7 +119,7 @@ def get_products_by_category(graph, category):
 def main():
     st.set_page_config(page_title="Semantic Product Search", layout="wide")
     
-    st.title("🛍️ Semantic Product Search Engine")
+    st.title("Semantic Product Search Engine")
     st.markdown("Using **RDF + SPARQL + OWL Inference**")
     
     # Load data
@@ -130,11 +130,11 @@ def main():
     st.sidebar.header("Search Options")
     search_type = st.sidebar.radio(
         "Choose search method:",
-        ["🔍 Keyword Search", "💰 Price Range", "📂 Category Browse", "🔗 Compatibility"]
+        ["Keyword Search", "Price Range", "Category Browse", "Compatibility"]
     )
     
     # 1. KEYWORD SEARCH
-    if search_type == "🔍 Keyword Search":
+    if search_type == "Keyword Search":
         st.subheader("Search Products by Name or Brand")
         keyword = st.text_input("Enter product name or brand:", "iPhone")
         if keyword:
@@ -146,7 +146,7 @@ def main():
                 st.warning("No products found")
     
     # 2. PRICE FILTER
-    elif search_type == "💰 Price Range":
+    elif search_type == "Price Range":
         st.subheader("Filter Products by Price")
         col1, col2 = st.columns(2)
         with col1:
@@ -165,9 +165,9 @@ def main():
                 st.warning("No products in this price range")
     
     # 3. CATEGORY BROWSE (Demonstrates OWL Inference)
-    elif search_type == "📂 Category Browse":
+    elif search_type == "Category Browse":
         st.subheader("Browse by Category")
-        st.info("💡 **Semantic Intelligence**: Searching 'Electronics' also returns Laptops, Smartphones, and Accessories due to OWL subclass inference!")
+        st.info("**Semantic Intelligence**: Searching 'Electronics' also returns Laptops, Smartphones, and Accessories due to OWL subclass inference!")
         
         categories = ["Electronics", "Laptop", "Smartphone", "Accessory", "GamingLaptop"]
         category = st.selectbox("Select category:", categories)
@@ -181,7 +181,7 @@ def main():
                 st.warning("No products in this category")
     
     # 4. COMPATIBILITY RECOMMENDATIONS
-    elif search_type == "🔗 Compatibility":
+    elif search_type == "Compatibility":
         st.subheader("Find Compatible Accessories")
         products = ["iPhone 14 Pro", "Samsung Galaxy S23", "ASUS ROG Zephyrus", "Dell XPS 13", "USB-C Fast Charger"]
         selected = st.selectbox("Select a product:", products)
@@ -189,7 +189,7 @@ def main():
         if selected:
             compatible = get_compatible_products(graph, selected)
             if compatible:
-                st.success(f"✅ Products compatible with {selected}:")
+                st.success(f"Products compatible with {selected}:")
                 for item in compatible:
                     st.write(f"• {item}")
             else:
