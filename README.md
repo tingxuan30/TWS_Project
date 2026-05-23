@@ -1,33 +1,45 @@
 # TWS_Project
 
 ### Step 1: Create and Setup Project
-### ---------------------------------
-mkdir ecommerce-semantic-search
-cd ecommerce-semantic-search
-python -m venv venv
 
-### Step 2: Activate Virtual Environment
+1）mkdir ecommerce-semantic-search
+
+2) cd ecommerce-semantic-search
+   
+3）python -m venv venv
+
 ### -----------------------------------------------
-venv\Scripts\activate
+### Step 2: Activate Virtual Environment
 
+1）venv\Scripts\activate
+
+### -----------------------------------------------
 ### Step 3: Upgrade pip and Install Packages
-### -----------------------------------------
-python -m pip install --upgrade pip
-python -m pip install streamlit rdflib owlready2 pandas
 
+1）python -m pip install --upgrade pip
+
+2) python -m pip install streamlit rdflib owlready2 pandas
+   
+3）python -m venv venv
+
+### -----------------------------------------------
 ### Step 4: Verify Installation
-### --------------------------------------
-pip list | findstr "streamlit rdflib owlready pandas"
 
+1）pip list | findstr "streamlit rdflib owlready pandas"
+
+### -----------------------------------------------
 ### Step 5: Run the Application (terminal)
-### ---------------------------
-!Don't forget to put it in the "ecommerce-semantic-search" folder first!
-cd ecommerce-semantic-search
-python -m streamlit run app.py
 
+Don't forget to put it in the "ecommerce-semantic-search" folder first!
+
+1）cd ecommerce-semantic-search
+
+2) python -m streamlit run app.py
+
+### -----------------------------------------------
 ### Step 6: Clear Cache (terminal)
-### -------------------------------
-python -m streamlit cache clear
+
+1）python -m streamlit cache clear
 
 
 
