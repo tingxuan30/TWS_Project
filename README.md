@@ -4,9 +4,9 @@ Update all into the ternimal
 
 ### Step 1: Create and Setup Project
 
-1）mkdir ecommerce-semantic-search
+1）mkdir book-semantic-search
 
-2) cd ecommerce-semantic-search
+2) cd book-semantic-search
    
 3）python -m venv venv
 
@@ -21,8 +21,6 @@ Update all into the ternimal
 1）python -m pip install --upgrade pip
 
 2) python -m pip install streamlit rdflib owlready2 pandas
-   
-3）python -m venv venv
 
 ### -----------------------------------------------
 ### Step 4: Verify Installation
@@ -32,11 +30,9 @@ Update all into the ternimal
 ### -----------------------------------------------
 ### Step 5: Run the Application
 
-Don't forget to put it in the "ecommerce-semantic-search" folder first!
+Don't forget to put it in the "book-semantic-search" folder first (cd book-semantic-search)
 
-1）cd ecommerce-semantic-search
-
-2) python -m streamlit run app.py
+1）python -m streamlit run app.py
 
 ### -----------------------------------------------
 ### Step 6: Clear Cache (terminal)
