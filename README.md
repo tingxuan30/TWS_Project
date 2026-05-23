@@ -27,6 +27,7 @@
 ### Step 5: Run the Application (terminal)
 ### ---------------------------
 Don't forget to put it in the "ecommerce-semantic-search" folder first!
+
 1）cd ecommerce-semantic-search
 
 2) python -m streamlit run app.py
