@@ -15,7 +15,10 @@
 ### Step 3: Upgrade pip and Install Packages
 ### -----------------------------------------
 1）python -m pip install --upgrade pip
+
 2) python -m pip install streamlit rdflib owlready2 pandas
+   
+3）python -m venv venv
 
 ### Step 4: Verify Installation
 ### --------------------------------------
@@ -25,7 +28,9 @@
 ### ---------------------------
 Don't forget to put it in the "ecommerce-semantic-search" folder first!
 1）cd ecommerce-semantic-search
+
 2) python -m streamlit run app.py
+
 
 ### Step 6: Clear Cache (terminal)
 ### -------------------------------
