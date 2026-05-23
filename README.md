@@ -1,5 +1,7 @@
 # TWS_Project
 
+Update all into the ternimal
+
 ### Step 1: Create and Setup Project
 
 1）mkdir ecommerce-semantic-search
@@ -28,7 +30,7 @@
 1）pip list | findstr "streamlit rdflib owlready pandas"
 
 ### -----------------------------------------------
-### Step 5: Run the Application (terminal)
+### Step 5: Run the Application
 
 Don't forget to put it in the "ecommerce-semantic-search" folder first!
 
