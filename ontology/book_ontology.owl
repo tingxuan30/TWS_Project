@@ -30,7 +30,3 @@
 # Bestseller class (inferred)
 :Bestseller rdf:type owl:Class ;
             rdfs:subClassOf :Book .
-
-# Individuals (bestsellers)
-:HarryPotter1 rdf:type :Bestseller .
-:Sapiens rdf:type :Bestseller .
