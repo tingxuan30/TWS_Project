@@ -30,7 +30,9 @@ Update all into the ternimal
 ### -----------------------------------------------
 ### Step 5: Run the Application
 
-Don't forget to put it in the "book-semantic-search" folder first (cd book-semantic-search)
+Don't forget to put it in the "book-semantic-search" folder (cd book-semantic-search)
+
+After running the code, please enter your email address in the terminal, and then it will be forwarded to the website
 
 1）python -m streamlit run app.py
 
