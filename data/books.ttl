@@ -92,11 +92,19 @@
           :genre "NonFiction" ;
           :price "64.90"^^xsd:decimal .
 
+# ============
+# Biography
+# ============
+
 :Becoming rdf:type :Book ;
           :title "Becoming" ;
           :author "Michelle Obama" ;
           :genre "Biography" ;
           :price "52.00"^^xsd:decimal .
+
+# ============
+# Technical
+# ============
 
 :CleanCode rdf:type :Book ;
            :title "Clean Code: A Handbook of Agile Software Craftsmanship" ;

@@ -315,7 +315,7 @@ def show_homepage():
     
     with col2:
         st.markdown("**Select a category**")
-        categories = ["All", "Fiction", "NonFiction", "Fantasy", "Mystery", "ScienceFiction", "Biography", "Technical"]
+        categories = ["All", "NonFiction", "Fantasy", "Mystery", "Biography", "Technical"]
         category = st.selectbox("", categories, label_visibility="collapsed")
     
     # Recommend button
@@ -470,7 +470,7 @@ def show_search_page():
         st.subheader("Browse Books by Genre")
         st.info("**Semantic Intelligence**: Searching 'Fiction' also returns Fantasy, Mystery, and Science Fiction due to OWL subclass inference!")
         
-        genres = ["Book", "Fiction", "NonFiction", "Fantasy", "Mystery", "ScienceFiction", "Biography", "Technical"]
+        genres = ["All", "NonFiction", "Fantasy", "Mystery", "Biography", "Technical"]
         genre = st.selectbox("Select a genre:", genres)
         
         if genre:
@@ -498,7 +498,7 @@ def show_search_page():
     elif search_type == "Browse by Author":
         st.subheader("Browse Books by Author")
         
-        authors = ["J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien", "Dan Brown", "Yuval Noah Harari", "Andy Weir", "Gillian Flynn", "Frank Herbert", "Michelle Obama", "Robert C. Martin"]
+        authors = ["J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien", "Dan Brown", "Yuval Noah Harari", "Gillian Flynn", "Michelle Obama", "Robert C. Martin"]
         author_name = st.selectbox("Select an author:", authors)
         
         if author_name:
@@ -585,10 +585,10 @@ def main():
     
     page = st.sidebar.radio(
         "Go to:",
-        ["Homepage (Recommender)", "Advanced Search"]
+        ["Homepage", "Advanced Search"]
     )
     
-    if page == "Homepage (Recommender)":
+    if page == "Homepage":
         show_homepage()
     else:
         show_search_page()
