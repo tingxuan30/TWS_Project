@@ -18,14 +18,13 @@
 :Mystery rdf:type owl:Class ;
         rdfs:subClassOf :Fiction .
 
-:ScienceFiction rdf:type owl:Class ;
-               rdfs:subClassOf :Fiction .
-
 :Biography rdf:type owl:Class ;
           rdfs:subClassOf :NonFiction .
 
 :Technical rdf:type owl:Class ;
           rdfs:subClassOf :NonFiction .
+
+
 
 # Bestseller class (inferred)
 :Bestseller rdf:type owl:Class ;

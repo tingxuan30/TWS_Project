@@ -104,26 +104,39 @@ def get_similar_books(graph, book_title):
     return pd.DataFrame(results)
 
 def get_books_by_genre(graph, genre):
-    """Get all books in a genre (with OWL inference)"""
+
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-    SELECT ?book ?title ?author ?price WHERE {{
-        ?book rdf:type/rdfs:subClassOf* :{genre} ;
-                 :title ?title ;
-                 :author ?author ;
-                 :price ?price .
+
+    SELECT ?book ?title ?author ?price ?bookGenre WHERE {{
+
+        ?book rdf:type :Book ;
+              rdf:type ?bookGenre ;
+              :title ?title ;
+              :author ?author ;
+              :price ?price .
+
+        ?bookGenre rdfs:subClassOf* :{genre} .
+
+        FILTER(?bookGenre != :Book)
+        FILTER(?bookGenre != :Bestseller)
     }}
     """
+
     results = []
+
     for row in graph.query(query):
+
         results.append({
             "Book": str(row.book).split("#")[-1],
             "Title": str(row.title),
             "Author": str(row.author),
+            "Genre": str(row.bookGenre).split("#")[-1],
             "Price (RM)": float(row.price)
         })
+
     return pd.DataFrame(results)
 
 def get_books_by_author(graph, author_name):
@@ -217,41 +230,56 @@ def get_recommendations_by_description(description, category, graph):
     return recommendations
 
 def get_book_cover(book_title):
-    """
-    Get the cover image path for a given book title.
-    Returns the image path if exists, otherwise returns None.
-    """
-    # Map book titles to your image filenames
+
     cover_mapping = {
-        "Harry Potter and the Sorcerer's Stone": "HP1.jpg",
-        "Harry Potter and the Chamber of Secrets": "HP2.jpg",
-        "Harry Potter and the Prisoner of Azkaban": "HP3.jpg",
+        "Harry Potter and the Sorcerer's Stone": "HP1",
+        "Harry Potter and the Chamber of Secrets": "HP2",
+        "Harry Potter and the Prisoner of Azkaban": "HP3",
+        "A Game of Thrones": "GT",
+        "A Clash of Kings": "CK",
+        "The Hobbit": "TheHobbit",
+        "The Fellowship of the Ring": "The_Fellowship_of_the_Ring",
+        "The Da Vinci Code": "DaVinciCode",
+        "Angels & Demons": "Angels&Demons",
+        "Gone Girl": "GG",
+        "Sapiens: A Brief History of Humankind": "Sapiens",
+        "Homo Deus: A Brief History of Tomorrow": "HomoDeus",
+        "Becoming": "Becoming",
+        "Clean Code: A Handbook of Agile Software Craftsmanship": "CleanCode",
     }
-    
-    # Get the filename for this book
+
     filename = cover_mapping.get(book_title)
-    
+
     if filename:
-        cover_path = f"image/{filename}"
-        if os.path.exists(cover_path):
-            return cover_path
-    
-    # Return None if no cover found
+
+        # Get current python file directory
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+        # Full image folder path
+        image_folder = os.path.join(BASE_DIR, "image")
+
+        # Supported image formats
+        extensions = [".jpg", ".jpeg", ".png", ".JPG"]
+
+        for ext in extensions:
+
+            cover_path = os.path.join(image_folder, filename + ext)
+
+            if os.path.exists(cover_path):
+                return cover_path
+
+        st.warning(f"No image found for {filename}")
+
     return None
 
 def display_book_card(book_title, author, genre, price, show_cover=True):
-    """Display a book card with optional cover image"""
     
     cover_path = get_book_cover(book_title) if show_cover else None
     col1, col2 = st.columns([1, 3])
     
     with col1:
-        if cover_path and os.path.exists(cover_path):
-            try:
-                cover = Image.open(cover_path)
-                st.image(cover, width=100)
-            except Exception as e:
-                print(f"Error loading image: {e}")
+        if cover_path:
+            st.image(cover_path, width=120)
         else:
             st.write("📚")
     
@@ -310,13 +338,22 @@ def show_homepage():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("**Please enter a description of a book you like**")
-        description = st.text_area("", placeholder="e.g., A tale of friendship, magic, and adventure...", height=100)
-    
+        st.write("##### Please enter a description of a book you like")
+        description = st.text_area(
+            "",
+            placeholder="e.g., A tale of friendship, magic, and adventure...",
+            height=50,
+            label_visibility="collapsed"
+        )
+
     with col2:
-        st.markdown("**Select a category**")
+        st.write("##### Select a category")
         categories = ["All", "NonFiction", "Fantasy", "Mystery", "Biography", "Technical"]
-        category = st.selectbox("", categories, label_visibility="collapsed")
+        category = st.selectbox(
+            "",
+            categories,
+            label_visibility="collapsed"
+        )
     
     # Recommend button
     if st.button("Recommend Books", type="primary", use_container_width=True):
@@ -354,18 +391,35 @@ def show_homepage():
     # Featured Books Section
     st.markdown("---")
     st.subheader("Featured Bestsellers")
-    
+
     bestsellers = get_bestseller_recommendations(graph)
+
     if not bestsellers.empty:
+
         cols = st.columns(4)
+
         for idx, (_, book) in enumerate(bestsellers.head(4).iterrows()):
+
             with cols[idx]:
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 1rem; border-radius: 10px; text-align: center;">
-                    <h4>{book['Title'][:25]}...</h4>
-                    <p>{book['Author']}<br>RM {book['Price (RM)']}</p>
-                </div>
-                """, unsafe_allow_html=True)
+
+                # Get cover image
+                cover_path = get_book_cover(book['Title'])
+
+                # Create card container
+                with st.container():
+
+                    # Show image
+                    if cover_path:
+                        st.image(cover_path, width=140)
+                    else:
+                        st.write("📚")
+
+                    # Show book info
+                    st.markdown(f"""
+                    **{book['Title']}**  
+                    *{book['Author']}*  
+                    RM {book['Price (RM)']}
+                    """)
     
     # Quick Stats
     st.markdown("---")
@@ -467,20 +521,35 @@ def show_search_page():
     
     # 3. BROWSE BY GENRE
     elif search_type == "Browse by Genre":
+
         st.subheader("Browse Books by Genre")
-        st.info("**Semantic Intelligence**: Searching 'Fiction' also returns Fantasy, Mystery, and Science Fiction due to OWL subclass inference!")
-        
-        genres = ["All", "NonFiction", "Fantasy", "Mystery", "Biography", "Technical"]
+
+        # Genre options
+        genres = [
+            "All",
+            "Fiction",
+            "NonFiction",
+            "Fantasy",
+            "Mystery",
+            "Biography",
+            "Technical"
+        ]
+
         genre = st.selectbox("Select a genre:", genres)
-        
-        if genre:
-            df = get_books_by_genre(graph, genre)
+
+        # ALL BOOKS
+        if genre == "All":
+
+            df = get_all_books(graph)
+
             if not df.empty:
+
                 for _, book in df.iterrows():
+
                     display_book_card(
                         book_title=book['Title'],
                         author=book['Author'],
-                        genre=genre,
+                        genre=book['Genre'],
                         price=book['Price (RM)'],
                         show_cover=True
                     )
@@ -488,11 +557,49 @@ def show_search_page():
                 with st.expander("View as table"):
                     st.dataframe(df, use_container_width=True)
 
-                st.caption(f"Showing {len(df)} books in '{genre}' and its subgenres (inferred via OWL reasoning)")
-                unique_authors = df["Author"].nunique()
-                st.metric("Unique Authors", unique_authors)
+                st.success(f"Showing all {len(df)} books")
+
             else:
-                st.warning("No books found in this genre.")
+                st.warning("No books found.")
+
+        # SPECIFIC GENRE
+        else:
+
+            df = get_books_by_genre(graph, genre)
+
+            if not df.empty:
+
+                for _, book in df.iterrows():
+
+                    display_book_card(
+                        book_title=book['Title'],
+                        author=book['Author'],
+                        genre=book['Genre'],
+                        price=book['Price (RM)'],
+                        show_cover=True
+                    )
+
+                with st.expander("View as table"):
+                    st.dataframe(df, use_container_width=True)
+
+                st.caption(
+                    f"Showing {len(df)} books in '{genre}' "
+                    f"and its semantic subgenres using OWL reasoning."
+                )
+
+                # Metrics
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    unique_authors = df["Author"].nunique()
+                    st.metric("Unique Authors", unique_authors)
+
+                with col2:
+                    avg_price = df["Price (RM)"].mean()
+                    st.metric("Average Price", f"RM {avg_price:.2f}")
+
+            else:
+                st.warning(f"No books found under '{genre}'.")
     
     # 4. BROWSE BY AUTHOR
     elif search_type == "Browse by Author":

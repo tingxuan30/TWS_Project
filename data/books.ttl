@@ -1,113 +1,146 @@
 @prefix : <http://www.example.org/bookstore#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# =========
-# FANTASY 
-# =========
+# =========================================
+# CLASSES
+# =========================================
 
-:HarryPotter1 rdf:type :Book ;
-              rdf:type :Bestseller ;
+:Book rdf:type owl:Class .
+
+:Fiction rdf:type owl:Class .
+:NonFiction rdf:type owl:Class .
+
+:Fantasy rdf:type owl:Class ;
+          rdfs:subClassOf :Fiction .
+
+:Mystery rdf:type owl:Class ;
+          rdfs:subClassOf :Fiction .
+
+:Biography rdf:type owl:Class ;
+            rdfs:subClassOf :NonFiction .
+
+:Technical rdf:type owl:Class ;
+            rdfs:subClassOf :NonFiction .
+
+:Bestseller rdf:type owl:Class ;
+            rdfs:subClassOf :Book .
+
+# =========================================
+# PROPERTIES
+# =========================================
+
+:title rdf:type owl:DatatypeProperty .
+:author rdf:type owl:DatatypeProperty .
+:price rdf:type owl:DatatypeProperty .
+:isbn rdf:type owl:DatatypeProperty .
+
+# =========================================
+# FANTASY BOOKS
+# =========================================
+
+:HarryPotter1 rdf:type :Book ,
+                       :Fantasy ,
+                       :Bestseller ;
               :title "Harry Potter and the Sorcerer's Stone" ;
               :author "J.K. Rowling" ;
-              :genre "Fantasy" ;
               :price "29.90"^^xsd:decimal ;
               :isbn "9780439708180" .
 
-:HarryPotter2 rdf:type :Book ;
+:HarryPotter2 rdf:type :Book ,
+                       :Fantasy ;
               :title "Harry Potter and the Chamber of Secrets" ;
               :author "J.K. Rowling" ;
-              :genre "Fantasy" ;
               :price "32.50"^^xsd:decimal .
 
-:HarryPotter3 rdf:type :Book ;
+:HarryPotter3 rdf:type :Book ,
+                       :Fantasy ;
               :title "Harry Potter and the Prisoner of Azkaban" ;
               :author "J.K. Rowling" ;
-              :genre "Fantasy" ;
               :price "35.90"^^xsd:decimal .
 
-:GameOfThrones rdf:type :Book ;
+:GameOfThrones rdf:type :Book ,
+                        :Fantasy ;
                :title "A Game of Thrones" ;
                :author "George R.R. Martin" ;
-               :genre "Fantasy" ;
                :price "45.00"^^xsd:decimal .
 
-:ClashOfKings rdf:type :Book ;
+:ClashOfKings rdf:type :Book ,
+                       :Fantasy ;
               :title "A Clash of Kings" ;
               :author "George R.R. Martin" ;
-              :genre "Fantasy" ;
               :price "48.00"^^xsd:decimal .
 
-:TheHobbit rdf:type :Book ;
+:TheHobbit rdf:type :Book ,
+                    :Fantasy ;
            :title "The Hobbit" ;
            :author "J.R.R. Tolkien" ;
-           :genre "Fantasy" ;
            :price "35.90"^^xsd:decimal .
 
-:FellowshipOfRing rdf:type :Book ;
+:FellowshipOfRing rdf:type :Book ,
+                           :Fantasy ;
                   :title "The Fellowship of the Ring" ;
                   :author "J.R.R. Tolkien" ;
-                  :genre "Fantasy" ;
                   :price "42.00"^^xsd:decimal .
 
-# =========
-# MYSTERY 
-# =========
+# =========================================
+# MYSTERY BOOKS
+# =========================================
 
-:DaVinciCode rdf:type :Book ;
-             rdf:type :Bestseller ;
+:DaVinciCode rdf:type :Book ,
+                      :Mystery ,
+                      :Bestseller ;
              :title "The Da Vinci Code" ;
              :author "Dan Brown" ;
-             :genre "Mystery" ;
              :price "42.00"^^xsd:decimal .
 
-:AngelsAndDemons rdf:type :Book ;
+:AngelsAndDemons rdf:type :Book ,
+                          :Mystery ;
                  :title "Angels & Demons" ;
                  :author "Dan Brown" ;
-                 :genre "Mystery" ;
                  :price "38.00"^^xsd:decimal .
 
-:GoneGirl rdf:type :Book ;
+:GoneGirl rdf:type :Book ,
+                   :Mystery ;
           :title "Gone Girl" ;
           :author "Gillian Flynn" ;
-          :genre "Mystery" ;
           :price "44.90"^^xsd:decimal .
 
+# =========================================
+# NON-FICTION BOOKS
+# =========================================
 
-# ============
-# NON-FICTION 
-# ============
-
-:Sapiens rdf:type :Book ;
-         rdf:type :Bestseller ;
+:Sapiens rdf:type :Book ,
+                  :NonFiction ,
+                  :Bestseller ;
          :title "Sapiens: A Brief History of Humankind" ;
          :author "Yuval Noah Harari" ;
-         :genre "NonFiction" ;
          :price "59.90"^^xsd:decimal .
 
-:HomoDeus rdf:type :Book ;
+:HomoDeus rdf:type :Book ,
+                   :NonFiction ;
           :title "Homo Deus: A Brief History of Tomorrow" ;
           :author "Yuval Noah Harari" ;
-          :genre "NonFiction" ;
           :price "64.90"^^xsd:decimal .
 
-# ============
-# Biography
-# ============
+# =========================================
+# BIOGRAPHY BOOKS
+# =========================================
 
-:Becoming rdf:type :Book ;
-          :title "Becoming" ;
-          :author "Michelle Obama" ;
-          :genre "Biography" ;
-          :price "52.00"^^xsd:decimal .
+:Becoming rdf:type :Book ,
+                    :Biography ;
+           :title "Becoming" ;
+           :author "Michelle Obama" ;
+           :price "52.00"^^xsd:decimal .
 
-# ============
-# Technical
-# ============
+# =========================================
+# TECHNICAL BOOKS
+# =========================================
 
-:CleanCode rdf:type :Book ;
+:CleanCode rdf:type :Book ,
+                    :Technical ;
            :title "Clean Code: A Handbook of Agile Software Craftsmanship" ;
            :author "Robert C. Martin" ;
-           :genre "Technical" ;
            :price "89.90"^^xsd:decimal .
