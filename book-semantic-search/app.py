@@ -6,7 +6,7 @@ import pandas as pd
 import random
 import os
 from PIL import Image
-
+# test commit
 # ---------------------------
 # 1. LOAD RDF DATA
 # ---------------------------
