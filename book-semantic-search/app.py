@@ -7,6 +7,12 @@ import random
 import os
 from PIL import Image
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(BASE_DIR)
+DATA_PATH = os.path.join(ROOT_DIR, "data", "books.ttl")
+ONTOLOGY_PATH = os.path.join(ROOT_DIR, "ontology", "book_ontology.owl")
+IMAGE_DIR = os.path.join(BASE_DIR, "image")
+
 # ---------------------------
 # 1. LOAD RDF DATA
 # ---------------------------
@@ -14,8 +20,20 @@ from PIL import Image
 def load_data():
     """Load RDF data and ontology"""
     g = rdflib.Graph()
-    g.parse("data/books.ttl", format="turtle")
-    g.parse("ontology/book_ontology.owl", format="turtle")
+    
+
+    g.bind("", "http://www.example.org/bookstore#")
+    g.bind("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+    g.bind("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
+    g.bind("owl", "http://www.w3.org/2002/07/owl#")
+    g.bind("xsd", "http://www.w3.org/2001/XMLSchema#")
+    
+    try:
+        g.parse("data/books.ttl", format="turtle")
+        g.parse("ontology/book_ontology.owl", format="turtle")
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+    
     return g
 
 # ---------------------------
@@ -24,35 +42,145 @@ def load_data():
 @st.cache_resource
 def load_ontology_and_reason():
     """Load ontology and run reasoner to infer new relationships"""
-    onto = get_ontology("ontology/book_ontology.owl").load()
-    sync_reasoner()
-    return onto
+    try:
+        onto = get_ontology(ONTOLOGY_PATH).load()
+        sync_reasoner()
+        st.success("Ontology reasoning completed!")
+        return onto
+    except Exception as e:
+        st.error(f"Error in ontology reasoning: {e}")
+        return None
 
 # ---------------------------
 # 3. SPARQL QUERY FUNCTIONS
 # ---------------------------
+
+def get_all_books(graph):
+    """Get all books in the catalog"""
+    query = """
+    PREFIX : <http://www.example.org/bookstore#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?title ?author ?price WHERE {
+        ?book rdf:type :Book .
+        ?book :title ?title .
+        ?book :author ?author .
+        ?book :price ?price .
+    }
+    """
+    results = []
+    
+    try:
+        for row in graph.query(query):
+            genre_query = f"""
+            PREFIX : <http://www.example.org/bookstore#>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            
+            SELECT ?type WHERE {{
+                ?book :title "{str(row.title)}" .
+                ?book rdf:type ?type .
+                FILTER(?type != :Book && ?type != :Bestseller)
+            }}
+            LIMIT 1
+            """
+            
+            genre = "Unknown"
+            genre_results = list(graph.query(genre_query))
+            if genre_results:
+                genre_uri = str(genre_results[0][0])
+                genre = genre_uri.split("#")[-1]
+            
+            results.append({
+                "Title": str(row.title),
+                "Author": str(row.author),
+                "Genre": genre,
+                "Price (RM)": float(row.price)
+            })
+        
+        df = pd.DataFrame(results)
+        
+        if df.empty:
+            st.warning("No books found in the catalog")
+            return pd.DataFrame(columns=["Title", "Author", "Genre", "Price (RM)"])
+        else:
+            st.info(f"✅ Loaded {len(df)} books from catalog")
+            return df
+        
+    except Exception as e:
+        st.error(f"Error in get_all_books: {e}")
+        return pd.DataFrame(columns=["Title", "Author", "Genre", "Price (RM)"])
+
+def get_bestseller_recommendations(graph):
+    """Get books marked as bestsellers"""
+    query = """
+    PREFIX : <http://www.example.org/bookstore#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?title ?author ?price WHERE {
+        ?book rdf:type :Bestseller .
+        ?book :title ?title .
+        ?book :author ?author .
+        ?book :price ?price .
+    }
+    """
+    results = []
+    
+    try:
+        for row in graph.query(query):
+            results.append({
+                "Title": str(row.title),
+                "Author": str(row.author),
+                "Price (RM)": float(row.price)
+            })
+        
+        if results:
+            st.info(f"✅ Found {len(results)} bestsellers")
+        
+        return pd.DataFrame(results)
+        
+    except Exception as e:
+        st.error(f"Error in get_bestseller_recommendations: {e}")
+        return pd.DataFrame(columns=["Title", "Author", "Price (RM)"])
+
 def search_by_keyword(graph, keyword):
     """Search books by title, author, or genre using SPARQL"""
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
-    SELECT ?book ?title ?author ?genre ?price WHERE {{
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?title ?author ?price WHERE {{
         ?book rdf:type :Book ;
-                 :title ?title ;
-                 :author ?author ;
-                 :genre ?genre ;
-                 :price ?price .
+              :title ?title ;
+              :author ?author ;
+              :price ?price .
         FILTER(CONTAINS(LCASE(?title), LCASE("{keyword}")) || 
-               CONTAINS(LCASE(?author), LCASE("{keyword}")) ||
-               CONTAINS(LCASE(?genre), LCASE("{keyword}")))
+               CONTAINS(LCASE(?author), LCASE("{keyword}")))
     }}
     """
     results = []
     for row in graph.query(query):
+        genre_query = f"""
+        PREFIX : <http://www.example.org/bookstore#>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        
+        SELECT ?type WHERE {{
+            ?book :title "{str(row.title)}" .
+            ?book rdf:type ?type .
+            FILTER(?type != :Book && ?type != :Bestseller)
+        }}
+        LIMIT 1
+        """
+        
+        genre = "Unknown"
+        genre_results = list(graph.query(genre_query))
+        if genre_results:
+            genre_uri = str(genre_results[0][0])
+            genre = genre_uri.split("#")[-1]
+        
         results.append({
-            "Book": str(row.book).split("#")[-1],
             "Title": str(row.title),
             "Author": str(row.author),
-            "Genre": str(row.genre),
+            "Genre": genre,
             "Price (RM)": float(row.price)
         })
     return pd.DataFrame(results)
@@ -61,10 +189,13 @@ def filter_by_price(graph, min_price, max_price):
     """Filter books within price range"""
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
-    SELECT ?book ?title ?author ?price WHERE {{
-        ?book :title ?title ;
-                 :author ?author ;
-                 :price ?price .
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?title ?author ?price WHERE {{
+        ?book rdf:type :Book ;
+              :title ?title ;
+              :author ?author ;
+              :price ?price .
         FILTER(?price >= {min_price} && ?price <= {max_price})
     }}
     ORDER BY ?price
@@ -72,7 +203,6 @@ def filter_by_price(graph, min_price, max_price):
     results = []
     for row in graph.query(query):
         results.append({
-            "Book": str(row.book).split("#")[-1],
             "Title": str(row.title),
             "Author": str(row.author),
             "Price (RM)": float(row.price)
@@ -81,122 +211,101 @@ def filter_by_price(graph, min_price, max_price):
 
 def get_similar_books(graph, book_title):
     """Find books similar to a given book using OWL property (same author or genre)"""
+    author_query = f"""
+    PREFIX : <http://www.example.org/bookstore#>
+    
+    SELECT ?author WHERE {{
+        ?book :title "{book_title}" ;
+              :author ?author .
+    }}
+    """
+    
+    authors = list(graph.query(author_query))
+    if not authors:
+        return pd.DataFrame()
+    
+    author = str(authors[0][0])
+    
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
-    SELECT ?book ?similar_title ?author ?genre WHERE {{
-        ?book :title "{book_title}" ;
-                 :author ?author ;
-                 :genre ?genre .
-        ?similar_book :title ?similar_title ;
-                      :author ?author ;
-                      :genre ?genre .
-        FILTER(?similar_title != "{book_title}")
+    
+    SELECT ?title ?author WHERE {{
+        ?book :title ?title ;
+              :author "{author}" .
+        FILTER(?title != "{book_title}")
     }}
     LIMIT 10
     """
+    
     results = []
     for row in graph.query(query):
         results.append({
-            "Title": str(row.similar_title),
+            "Title": str(row.title),
             "Author": str(row.author),
-            "Genre": str(row.genre)
+            "Genre": "Unknown"
         })
+    
     return pd.DataFrame(results)
 
 def get_books_by_genre(graph, genre):
-
+    """Get books by genre using OWL reasoning"""
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-
-    SELECT ?book ?title ?author ?price ?bookGenre WHERE {{
-
-        ?book rdf:type :Book ;
-              rdf:type ?bookGenre ;
+    
+    SELECT ?title ?author ?price WHERE {{
+        ?book rdf:type :{genre} ;
               :title ?title ;
               :author ?author ;
               :price ?price .
-
-        ?bookGenre rdfs:subClassOf* :{genre} .
-
-        FILTER(?bookGenre != :Book)
-        FILTER(?bookGenre != :Bestseller)
     }}
     """
-
+    
     results = []
-
     for row in graph.query(query):
-
         results.append({
-            "Book": str(row.book).split("#")[-1],
             "Title": str(row.title),
             "Author": str(row.author),
-            "Genre": str(row.bookGenre).split("#")[-1],
+            "Genre": genre,
             "Price (RM)": float(row.price)
         })
-
+    
     return pd.DataFrame(results)
 
 def get_books_by_author(graph, author_name):
     """Get all books by a specific author"""
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
-    SELECT ?book ?title ?genre ?price WHERE {{
+    
+    SELECT ?title ?price WHERE {{
         ?book :title ?title ;
-                 :author "{author_name}" ;
-                 :genre ?genre ;
-                 :price ?price .
-    }}
-    """
-    results = []
-    for row in graph.query(query):
-        results.append({
-            "Title": str(row.title),
-            "Genre": str(row.genre),
-            "Price (RM)": float(row.price)
-        })
-    return pd.DataFrame(results)
-
-def get_bestseller_recommendations(graph):
-    """Get books marked as bestsellers"""
-    query = f"""
-    PREFIX : <http://www.example.org/bookstore#>
-    SELECT ?book ?title ?author ?price WHERE {{
-        ?book rdf:type :Bestseller ;
-                 :title ?title ;
-                 :author ?author ;
-                 :price ?price .
-    }}
-    """
-    results = []
-    for row in graph.query(query):
-        results.append({
-            "Title": str(row.title),
-            "Author": str(row.author),
-            "Price (RM)": float(row.price)
-        })
-    return pd.DataFrame(results)
-
-def get_all_books(graph):
-    """Get all books in the catalog"""
-    query = f"""
-    PREFIX : <http://www.example.org/bookstore#>
-    SELECT ?title ?author ?genre ?price WHERE {{
-        ?book rdf:type :Book ;
-              :title ?title ;
-              :author ?author ;
-              :genre ?genre ;
+              :author "{author_name}" ;
               :price ?price .
     }}
     """
     results = []
     for row in graph.query(query):
+        genre_query = f"""
+        PREFIX : <http://www.example.org/bookstore#>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        
+        SELECT ?type WHERE {{
+            ?book :title "{str(row.title)}" .
+            ?book rdf:type ?type .
+            FILTER(?type != :Book && ?type != :Bestseller)
+        }}
+        LIMIT 1
+        """
+        
+        genre = "Unknown"
+        genre_results = list(graph.query(genre_query))
+        if genre_results:
+            genre_uri = str(genre_results[0][0])
+            genre = genre_uri.split("#")[-1]
+        
         results.append({
             "Title": str(row.title),
-            "Author": str(row.author),
-            "Genre": str(row.genre),
+            "Genre": genre,
             "Price (RM)": float(row.price)
         })
     return pd.DataFrame(results)
@@ -204,6 +313,9 @@ def get_all_books(graph):
 def get_recommendations_by_description(description, category, graph):
     """Get book recommendations based on user description and category"""
     all_books = get_all_books(graph)
+    
+    if all_books.empty:
+        return pd.DataFrame()
     
     # Simple recommendation logic based on keywords
     keywords = description.lower().split()
@@ -230,7 +342,7 @@ def get_recommendations_by_description(description, category, graph):
     return recommendations
 
 def get_book_cover(book_title):
-
+    """Get book cover image path"""
     cover_mapping = {
         "Harry Potter and the Sorcerer's Stone": "HP1",
         "Harry Potter and the Chamber of Secrets": "HP2",
@@ -251,29 +363,17 @@ def get_book_cover(book_title):
     filename = cover_mapping.get(book_title)
 
     if filename:
-
-        # Get current python file directory
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-        # Full image folder path
-        image_folder = os.path.join(BASE_DIR, "image")
-
-        # Supported image formats
         extensions = [".jpg", ".jpeg", ".png", ".JPG"]
 
         for ext in extensions:
-
-            cover_path = os.path.join(image_folder, filename + ext)
-
+            cover_path = os.path.join(IMAGE_DIR, filename + ext)
             if os.path.exists(cover_path):
                 return cover_path
-
-        st.warning(f"No image found for {filename}")
 
     return None
 
 def display_book_card(book_title, author, genre, price, show_cover=True):
-    
+    """Display a book card with cover image"""
     cover_path = get_book_cover(book_title) if show_cover else None
     col1, col2 = st.columns([1, 3])
     
@@ -334,7 +434,7 @@ def show_homepage():
     with st.spinner("Loading book catalog..."):
         graph = load_data()
     
-    # Create two columns for input (removed tone column)
+    # Create two columns for input
     col1, col2 = st.columns(2)
     
     with col1:
@@ -395,48 +495,49 @@ def show_homepage():
     bestsellers = get_bestseller_recommendations(graph)
 
     if not bestsellers.empty:
-
         cols = st.columns(4)
-
         for idx, (_, book) in enumerate(bestsellers.head(4).iterrows()):
-
             with cols[idx]:
-
-                # Get cover image
                 cover_path = get_book_cover(book['Title'])
-
-                # Create card container
                 with st.container():
-
-                    # Show image
                     if cover_path:
                         st.image(cover_path, width=140)
                     else:
                         st.write("📚")
-
-                    # Show book info
                     st.markdown(f"""
                     **{book['Title']}**  
                     *{book['Author']}*  
                     RM {book['Price (RM)']}
                     """)
+    else:
+        st.info("No bestsellers found.")
     
     # Quick Stats
     st.markdown("---")
     col1, col2, col3, col4 = st.columns(4)
     
     all_books = get_all_books(graph)
-    unique_authors = all_books['Author'].nunique()
-    unique_genres = all_books['Genre'].nunique()
+    
+    if not all_books.empty and 'Author' in all_books.columns and 'Genre' in all_books.columns:
+        unique_authors = all_books['Author'].nunique()
+        unique_genres = all_books['Genre'].nunique()
+        total_books = len(all_books)
+    else:
+        unique_authors = 0
+        unique_genres = 0
+        total_books = 0
+        st.warning("Unable to load book statistics. Please check data files.")
+    
+    bestsellers_count = len(bestsellers) if not bestsellers.empty else 0
     
     with col1:
-        st.metric("Total Books", len(all_books))
+        st.metric("Total Books", total_books)
     with col2:
         st.metric("Authors", unique_authors)
     with col3:
         st.metric("Genres", unique_genres)
     with col4:
-        st.metric("Bestsellers", len(bestsellers))
+        st.metric("Bestsellers", bestsellers_count)
 
 # ---------------------------
 # 5. SEARCH PAGE UI
@@ -473,15 +574,9 @@ def show_search_page():
                         price=book['Price (RM)'],
                         show_cover=True
                     )
-
                 with st.expander("View as table"):
                     st.dataframe(df, use_container_width=True)
-
                 st.success(f"Found {len(df)} books matching '{keyword}'")
-                
-                if "Genre" in df.columns:
-                    st.caption("Genre distribution:")
-                    st.dataframe(df["Genre"].value_counts().reset_index().rename(columns={"index": "Genre", "Genre": "Count"}))
             else:
                 st.warning("No books found. Try a different keyword.")
     
@@ -505,10 +600,8 @@ def show_search_page():
                         price=book['Price (RM)'],
                         show_cover=True
                     )
-
                 with st.expander("View as table"):
                     st.dataframe(df, use_container_width=True)
-
                 col_a, col_b, col_c = st.columns(3)
                 with col_a:
                     st.metric("Average Price", f"RM{df['Price (RM)'].mean():.2f}")
@@ -521,90 +614,29 @@ def show_search_page():
     
     # 3. BROWSE BY GENRE
     elif search_type == "Browse by Genre":
-
         st.subheader("Browse Books by Genre")
-
-        # Genre options
-        genres = [
-            "All",
-            "Fiction",
-            "NonFiction",
-            "Fantasy",
-            "Mystery",
-            "Biography",
-            "Technical"
-        ]
-
+        genres = ["Fantasy", "Mystery", "NonFiction", "Biography", "Technical"]
         genre = st.selectbox("Select a genre:", genres)
-
-        # ALL BOOKS
-        if genre == "All":
-
-            df = get_all_books(graph)
-
-            if not df.empty:
-
-                for _, book in df.iterrows():
-
-                    display_book_card(
-                        book_title=book['Title'],
-                        author=book['Author'],
-                        genre=book['Genre'],
-                        price=book['Price (RM)'],
-                        show_cover=True
-                    )
-
-                with st.expander("View as table"):
-                    st.dataframe(df, use_container_width=True)
-
-                st.success(f"Showing all {len(df)} books")
-
-            else:
-                st.warning("No books found.")
-
-        # SPECIFIC GENRE
-        else:
-
-            df = get_books_by_genre(graph, genre)
-
-            if not df.empty:
-
-                for _, book in df.iterrows():
-
-                    display_book_card(
-                        book_title=book['Title'],
-                        author=book['Author'],
-                        genre=book['Genre'],
-                        price=book['Price (RM)'],
-                        show_cover=True
-                    )
-
-                with st.expander("View as table"):
-                    st.dataframe(df, use_container_width=True)
-
-                st.caption(
-                    f"Showing {len(df)} books in '{genre}' "
-                    f"and its semantic subgenres using OWL reasoning."
+        
+        df = get_books_by_genre(graph, genre)
+        if not df.empty:
+            for _, book in df.iterrows():
+                display_book_card(
+                    book_title=book['Title'],
+                    author=book['Author'],
+                    genre=book['Genre'],
+                    price=book['Price (RM)'],
+                    show_cover=True
                 )
-
-                # Metrics
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    unique_authors = df["Author"].nunique()
-                    st.metric("Unique Authors", unique_authors)
-
-                with col2:
-                    avg_price = df["Price (RM)"].mean()
-                    st.metric("Average Price", f"RM {avg_price:.2f}")
-
-            else:
-                st.warning(f"No books found under '{genre}'.")
+            with st.expander("View as table"):
+                st.dataframe(df, use_container_width=True)
+            st.success(f"Found {len(df)} books in {genre}")
+        else:
+            st.warning(f"No books found in {genre}")
     
     # 4. BROWSE BY AUTHOR
     elif search_type == "Browse by Author":
         st.subheader("Browse Books by Author")
-        
         authors = ["J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien", "Dan Brown", "Yuval Noah Harari", "Gillian Flynn", "Michelle Obama", "Robert C. Martin"]
         author_name = st.selectbox("Select an author:", authors)
         
@@ -619,10 +651,8 @@ def show_search_page():
                         price=book['Price (RM)'],
                         show_cover=True
                     )
-
                 with st.expander("View as table"):
                     st.dataframe(df, use_container_width=True)
-                    
                 st.success(f"Found {len(df)} books by {author_name}")
             else:
                 st.warning(f"No books found by {author_name}")
@@ -630,27 +660,29 @@ def show_search_page():
     # 5. SIMILAR BOOKS
     elif search_type == "Similar Books":
         st.subheader("Find Similar Books")
-        st.caption("Based on same author or genre — powered by semantic relationships")
+        st.caption("Based on same author — powered by semantic relationships")
         
         all_books = get_all_books(graph)
-        book_titles = all_books['Title'].tolist()
-        book_title = st.selectbox("Select a book you like:", book_titles)
-        
-        if book_title:
-            df = get_similar_books(graph, book_title)
-            if not df.empty:
-                st.success(f"Readers who liked '{book_title}' also enjoyed:")
-            for _, book in df.iterrows():
-                display_book_card(
-                    book_title=book['Title'],
-                    author=book['Author'],
-                    genre=book['Genre'],
-                    price="N/A",
-                    show_cover=True
-                )
-
-            else:
-                st.info("No similar books found in the catalog yet.")
+        if not all_books.empty:
+            book_titles = all_books['Title'].tolist()
+            book_title = st.selectbox("Select a book you like:", book_titles)
+            
+            if book_title:
+                df = get_similar_books(graph, book_title)
+                if not df.empty:
+                    st.success(f"Readers who liked '{book_title}' also enjoyed:")
+                    for _, book in df.iterrows():
+                        display_book_card(
+                            book_title=book['Title'],
+                            author=book['Author'],
+                            genre=book['Genre'],
+                            price="N/A",
+                            show_cover=True
+                        )
+                else:
+                    st.info("No similar books found in the catalog yet.")
+        else:
+            st.warning("No books available.")
     
     # 6. BESTSELLERS
     elif search_type == "Bestsellers":
