@@ -247,6 +247,151 @@ def get_similar_books(graph, book_title):
     
     return pd.DataFrame(results)
 
+def get_genre_statistics(graph, genre):
+    """Get statistics for a specific genre"""
+    df = get_books_by_genre(graph, genre)
+    
+    if df.empty:
+        return {
+            "total_books": 0,
+            "authors": [],
+            "bestseller_count": 0
+        }
+    
+    bestseller_query = """
+    PREFIX : <http://www.example.org/bookstore#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?title WHERE {
+        ?book rdf:type :Bestseller .
+        ?book :title ?title .
+    }
+    """
+    global_bestsellers = {str(row.title) for row in graph.query(bestseller_query)}
+    
+    bestseller_count = sum(1 for _, book in df.iterrows() if book['Title'] in global_bestsellers)
+    
+    return {
+        "total_books": len(df),
+        "authors": df['Author'].unique().tolist(),
+        "bestseller_count": bestseller_count
+    }
+
+def get_author_statistics(graph, author_name):
+    """Get statistics for a specific author"""
+    bestseller_query = """
+    PREFIX : <http://www.example.org/bookstore#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?title WHERE {
+        ?book rdf:type :Bestseller .
+        ?book :title ?title .
+    }
+    """
+    global_bestsellers = {str(row.title) for row in graph.query(bestseller_query)}
+    
+    query = f"""
+    PREFIX : <http://www.example.org/bookstore#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?title ?price WHERE {{
+        ?book :title ?title ;
+              :author "{author_name}" ;
+              :price ?price .
+    }}
+    """
+    
+    results = []
+    bestseller_count = 0
+    genres_set = set()
+    
+    for row in graph.query(query):
+        book_title = str(row.title)
+        
+        genre_query = f"""
+        PREFIX : <http://www.example.org/bookstore#>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        
+        SELECT ?type WHERE {{
+            ?book :title "{book_title}" .
+            ?book rdf:type ?type .
+            FILTER(?type != :Book && ?type != :Bestseller)
+        }}
+        LIMIT 1
+        """
+        
+        genre = "Unknown"
+        genre_results = list(graph.query(genre_query))
+        if genre_results:
+            genre_uri = str(genre_results[0][0])
+            genre = genre_uri.split("#")[-1]
+            genres_set.add(genre)
+        
+        is_bestseller = book_title in global_bestsellers
+        if is_bestseller:
+            bestseller_count += 1
+        
+        results.append({
+            "Title": book_title,
+            "Genre": genre,
+            "Price (RM)": float(row.price),
+            "Bestseller": "✅" if is_bestseller else "❌"
+        })
+    
+    df = pd.DataFrame(results)
+    
+    return {
+        "df": df,
+        "total_books": len(df),
+        "bestseller_count": bestseller_count,
+        "genres": sorted(list(genres_set))
+    }
+
+def get_similar_authors(graph, current_author, current_genres, authors_list):
+    """Get similar authors based on shared genres"""
+    similar_authors = []
+    
+    for other_author in authors_list:
+        if other_author != current_author:
+            other_query = f"""
+            PREFIX : <http://www.example.org/bookstore#>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            
+            SELECT ?title WHERE {{
+                ?book :title ?title ;
+                      :author "{other_author}" .
+            }}
+            """
+            
+            other_genres = set()
+            for other_row in graph.query(other_query):
+                other_genre_query = f"""
+                PREFIX : <http://www.example.org/bookstore#>
+                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+                
+                SELECT ?type WHERE {{
+                    ?book :title "{str(other_row.title)}" .
+                    ?book rdf:type ?type .
+                    FILTER(?type != :Book && ?type != :Bestseller)
+                }}
+                LIMIT 1
+                """
+                
+                other_genre_results = list(graph.query(other_genre_query))
+                if other_genre_results:
+                    other_genre_uri = str(other_genre_results[0][0])
+                    other_genre = other_genre_uri.split("#")[-1]
+                    other_genres.add(other_genre)
+            
+            shared_genres = current_genres.intersection(other_genres)
+            if shared_genres:
+                similar_authors.append({
+                    "name": other_author,
+                    "shared_genres": shared_genres
+                })
+    
+    return similar_authors
+
 def get_books_by_genre(graph, genre):
     """Get books by genre using OWL reasoning"""
     query = f"""
@@ -575,7 +720,10 @@ def show_search_page():
                         show_cover=True
                     )
                 with st.expander("View as table"):
-                    st.dataframe(df, use_container_width=True)
+                    display_df = df[['Title', 'Author', 'Genre', 'Price (RM)']].copy()
+                    display_df.index = range(1, len(display_df) + 1)
+                    display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
+                    st.dataframe(display_df, use_container_width=True)
                 st.success(f"Found {len(df)} books matching '{keyword}'")
             else:
                 st.warning("No books found. Try a different keyword.")
@@ -601,7 +749,10 @@ def show_search_page():
                         show_cover=True
                     )
                 with st.expander("View as table"):
-                    st.dataframe(df, use_container_width=True)
+                    display_df = df[['Title', 'Author', 'Price (RM)']].copy()
+                    display_df.index = range(1, len(display_df) + 1)
+                    display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
+                    st.dataframe(display_df, use_container_width=True)
                 col_a, col_b, col_c = st.columns(3)
                 with col_a:
                     st.metric("Average Price", f"RM{df['Price (RM)'].mean():.2f}")
@@ -618,8 +769,22 @@ def show_search_page():
         genres = ["Fantasy", "Mystery", "NonFiction", "Biography", "Technical"]
         genre = st.selectbox("Select a genre:", genres)
         
-        df = get_books_by_genre(graph, genre)
-        if not df.empty:
+        stats = get_genre_statistics(graph, genre)
+        
+        if stats["total_books"] > 0:
+            df = get_books_by_genre(graph, genre)
+            st.info(f"✅ Found {len(df)} books in {genre}")
+            st.markdown("---")
+            st.markdown(f"### Genre Summary: {genre}")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("Total Books", stats["total_books"])
+            with col2:
+                st.metric("Authors", len(stats["authors"]))
+            
+            st.markdown("---")
+            
             for _, book in df.iterrows():
                 display_book_card(
                     book_title=book['Title'],
@@ -628,21 +793,41 @@ def show_search_page():
                     price=book['Price (RM)'],
                     show_cover=True
                 )
+            
             with st.expander("View as table"):
-                st.dataframe(df, use_container_width=True)
-            st.success(f"Found {len(df)} books in {genre}")
+                display_df = df[['Title', 'Author', 'Genre', 'Price (RM)']].copy()
+                display_df.index = range(1, len(display_df) + 1)
+                display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
+                st.dataframe(display_df, use_container_width=True)
+            
         else:
             st.warning(f"No books found in {genre}")
-    
+
     # 4. BROWSE BY AUTHOR
     elif search_type == "Browse by Author":
         st.subheader("Browse Books by Author")
-        authors = ["J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien", "Dan Brown", "Yuval Noah Harari", "Gillian Flynn", "Michelle Obama", "Robert C. Martin"]
-        author_name = st.selectbox("Select an author:", authors)
+        authors_list = ["J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien", "Dan Brown", "Yuval Noah Harari", "Gillian Flynn", "Michelle Obama", "Robert C. Martin"]
+        author_name = st.selectbox("Select an author:", authors_list)
         
         if author_name:
-            df = get_books_by_author(graph, author_name)
-            if not df.empty:
+            author_stats = get_author_statistics(graph, author_name)
+            
+            if author_stats["total_books"] > 0:
+                df = author_stats["df"]
+                st.info(f"✅ Found {len(df)} books by {author_name}")
+                st.markdown("---")
+                st.markdown(f"### Author Summary: {author_name}")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Total Books", author_stats["total_books"])
+                with col2:
+                    st.metric("Bestseller Books", author_stats["bestseller_count"])
+                with col3:
+                    st.metric("Genres", ", ".join(author_stats["genres"]) if author_stats["genres"] else "Unknown")
+                
+                st.markdown("---")
+                
                 for _, book in df.iterrows():
                     display_book_card(
                         book_title=book['Title'],
@@ -651,12 +836,67 @@ def show_search_page():
                         price=book['Price (RM)'],
                         show_cover=True
                     )
+                
                 with st.expander("View as table"):
-                    st.dataframe(df, use_container_width=True)
-                st.success(f"Found {len(df)} books by {author_name}")
+                    display_df = df[['Title', 'Genre', 'Price (RM)', 'Bestseller']].copy()
+                    display_df.index = range(1, len(display_df) + 1)
+                    display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
+                    st.dataframe(display_df, use_container_width=True)
+                                
+                if author_stats["genres"]:
+                    st.markdown("---")
+                    st.markdown("## 🔍 Similar Authors You Might Like")
+                    
+                    similar_authors = get_similar_authors(
+                        graph, 
+                        author_name, 
+                        set(author_stats["genres"]), 
+                        authors_list
+                    )
+                    
+                if similar_authors:
+                    for sim_author in similar_authors:
+                        with st.expander(f"**{sim_author['name']}** | **Genre:** {', '.join(sorted(sim_author['shared_genres']))}"):
+                            
+                            sim_author_stats = get_author_statistics(graph, sim_author['name'])
+                            sim_df = sim_author_stats["df"]
+                            
+                            st.markdown("**Featured Books**")
+                            
+                            for _, book in sim_df.head(3).iterrows():
+                                col1, col2 = st.columns([1, 3])
+                                with col1:
+                                    cover_path = get_book_cover(book['Title'])
+                                    st.image(cover_path, width=100)
+                                
+                                with col2:
+                                    st.markdown(f"**{book['Title']}**")
+                                    st.markdown(f"*{book['Genre']}*")
+                                    st.markdown(f"RM {book['Price (RM)']:.2f}")
+                                    if book['Bestseller'] == "✅":
+                                        st.markdown("⭐ Bestseller")
+                                st.markdown("---")
+                            
+                            if len(sim_df) > 3:
+                                with st.expander(f"View all {len(sim_df)} books"):
+                                    for _, book in sim_df.iterrows():
+                                        col1, col2 = st.columns([1, 3])
+                                        with col1:
+                                            cover_path = get_book_cover(book['Title'])
+                                            st.image(cover_path, width=100)
+                                            st.markdown("---")
+                                        
+                                        with col2:
+                                            st.markdown(f"**{book['Title']}**")
+                                            st.markdown(f"*{book['Genre']}*")
+                                            st.markdown(f"RM {book['Price (RM)']:.2f}")
+                                            st.markdown("⭐ Bestseller")
+                                            st.markdown("---")
+                else:
+                    st.info("No similar authors found based on shared genres.")
             else:
                 st.warning(f"No books found by {author_name}")
-    
+
     # 5. SIMILAR BOOKS
     elif search_type == "Similar Books":
         st.subheader("Find Similar Books")
@@ -691,7 +931,10 @@ def show_search_page():
         
         df = get_bestseller_recommendations(graph)
         if not df.empty:
-            st.dataframe(df, use_container_width=True)
+            display_df = df[['Title', 'Author', 'Price (RM)']].copy()
+            display_df.index = range(1, len(display_df) + 1)
+            display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
+            st.dataframe(display_df, use_container_width=True)
             st.balloons()
         else:
             st.warning("No bestseller data available.")
