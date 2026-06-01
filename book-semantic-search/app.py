@@ -13,6 +13,19 @@ DATA_PATH = os.path.join(ROOT_DIR, "data", "books.ttl")
 ONTOLOGY_PATH = os.path.join(ROOT_DIR, "ontology", "book_ontology.owl")
 IMAGE_DIR = os.path.join(BASE_DIR, "image")
 
+# This is the testing synonym dictionary
+SYNONYM_MAP = {
+    "magic": ["Fantasy", "magic", "wizard", "sorcerer", "Harry Potter"],
+    "real life": ["NonFiction", "nonfiction", "biography", "memoir", "true story"],
+    "true story": ["NonFiction", "biography", "memoir"],
+    "future": ["Science Fiction", "sci-fi", "speculative", "dystopian"],
+    "detective": ["Mystery", "crime", "thriller", "suspense"],
+    "coding": ["Technical", "programming", "computer science", "Clean Code"],
+    "software": ["Technical", "programming"],
+    "history": ["NonFiction", "historical", "Sapiens"],
+    "adventure": ["Fantasy", "action", "adventure", "The Hobbit"],
+}
+
 # ---------------------------
 # 1. LOAD RDF DATA
 # ---------------------------
@@ -143,14 +156,105 @@ def get_bestseller_recommendations(graph):
         return pd.DataFrame(columns=["Title", "Author", "Price (RM)"])
 
 def search_by_keyword(graph, keyword):
-    """Search books by title, author, or genre using SPARQL"""
+    """Search books by title, author, or genre with synonym expansion."""
+    keyword_lower = keyword.lower().strip()
+    
+    # Expand keyword using the synonym map
+    expanded_terms = [keyword_lower]
+    for k, synonyms in SYNONYM_MAP.items():
+        if k in keyword_lower or keyword_lower in k:
+            expanded_terms.extend(synonyms)
+    
+    # Also add the keyword itself capitalized (for genre matching)
+    expanded_terms.append(keyword_lower.capitalize())
+    expanded_terms.append(keyword_lower.title())
+    
+    # Remove duplicates and empty strings
+    expanded_terms = list(set([t for t in expanded_terms if t]))
+    
+    if not expanded_terms:
+        return simple_keyword_search(graph, keyword)
+    
+    # Build SPARQL FILTER for title/author contains any term
+    title_author_filters = " || ".join([
+        f'CONTAINS(LCASE(?title), "{term.lower()}")' for term in expanded_terms
+    ] + [
+        f'CONTAINS(LCASE(?author), "{term.lower()}")' for term in expanded_terms
+    ])
+    
+    # Build FILTER for genre types (exact match on genre URIs)
+    # Only include terms that look like genre names (alphanumeric, no spaces)
+    genre_candidates = set()
+    for term in expanded_terms:
+        # Clean term: remove spaces and capitalize properly for genre name
+        clean = term.replace(" ", "").replace("-", "")
+        if clean.isalpha():
+            genre_candidates.add(clean.capitalize())
+            genre_candidates.add(clean)
+    
+    if genre_candidates:
+        genre_filters = " || ".join([
+            f'?type = <http://www.example.org/bookstore#{g}>' for g in genre_candidates
+        ])
+    else:
+        genre_filters = "false"  # no genre filter, but keep query valid
+    
+    # Only include title/author filter if non-empty
+    if title_author_filters:
+        title_author_part = f"{{ FILTER({title_author_filters}) }}"
+    else:
+        title_author_part = "{{ }}"
+    
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     
-    SELECT ?title ?author ?price WHERE {{
+    SELECT DISTINCT ?title ?author ?price ?type WHERE {{
         ?book rdf:type :Book ;
               :title ?title ;
+              :author ?author ;
+              :price ?price .
+        ?book rdf:type ?type .
+        FILTER(?type != :Book && ?type != :Bestseller)
+        {{
+            {title_author_part}
+            UNION
+            {{
+                FILTER({genre_filters})
+            }}
+        }}
+    }}
+    """
+    
+    results = []
+    try:
+        for row in graph.query(query):
+            genre_uri = str(row.type)
+            genre = genre_uri.split("#")[-1] if "#" in genre_uri else "Unknown"
+            results.append({
+                "Title": str(row.title),
+                "Author": str(row.author),
+                "Genre": genre,
+                "Price (RM)": float(row.price)
+            })
+        # Remove duplicates by title
+        seen = set()
+        unique_results = []
+        for r in results:
+            if r["Title"] not in seen:
+                seen.add(r["Title"])
+                unique_results.append(r)
+        return pd.DataFrame(unique_results)
+    except Exception as e:
+        st.error(f"Synonym search error: {e}. Falling back to simple keyword search.")
+        return simple_keyword_search(graph, keyword)
+
+def simple_keyword_search(graph, keyword):
+    """Fallback: original keyword search (title/author only)."""
+    query = f"""
+    PREFIX : <http://www.example.org/bookstore#>
+    SELECT ?title ?author ?price WHERE {{
+        ?book :title ?title ;
               :author ?author ;
               :price ?price .
         FILTER(CONTAINS(LCASE(?title), LCASE("{keyword}")) || 
@@ -158,32 +262,18 @@ def search_by_keyword(graph, keyword):
     }}
     """
     results = []
-    for row in graph.query(query):
-        genre_query = f"""
-        PREFIX : <http://www.example.org/bookstore#>
-        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-        
-        SELECT ?type WHERE {{
-            ?book :title "{str(row.title)}" .
-            ?book rdf:type ?type .
-            FILTER(?type != :Book && ?type != :Bestseller)
-        }}
-        LIMIT 1
-        """
-        
-        genre = "Unknown"
-        genre_results = list(graph.query(genre_query))
-        if genre_results:
-            genre_uri = str(genre_results[0][0])
-            genre = genre_uri.split("#")[-1]
-        
-        results.append({
-            "Title": str(row.title),
-            "Author": str(row.author),
-            "Genre": genre,
-            "Price (RM)": float(row.price)
-        })
-    return pd.DataFrame(results)
+    try:
+        for row in graph.query(query):
+            results.append({
+                "Title": str(row.title),
+                "Author": str(row.author),
+                "Genre": "Unknown",
+                "Price (RM)": float(row.price)
+            })
+        return pd.DataFrame(results)
+    except Exception as e:
+        st.error(f"Fallback search also failed: {e}")
+        return pd.DataFrame(columns=["Title", "Author", "Genre", "Price (RM)"])
 
 def filter_by_price(graph, min_price, max_price):
     """Filter books within price range"""
