@@ -2,30 +2,128 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-# Class hierarchy
+<http://www.example.org/bookstore>
+    rdf:type owl:Ontology .
+
+# =========================================
+# BASE CLASSES
+# =========================================
+
 :Book rdf:type owl:Class .
 
 :Fiction rdf:type owl:Class ;
-        rdfs:subClassOf :Book .
+    rdfs:subClassOf :Book .
 
 :NonFiction rdf:type owl:Class ;
-           rdfs:subClassOf :Book .
+    rdfs:subClassOf :Book .
 
 :Fantasy rdf:type owl:Class ;
-        rdfs:subClassOf :Fiction .
+    rdfs:subClassOf :Fiction .
 
 :Mystery rdf:type owl:Class ;
-        rdfs:subClassOf :Fiction .
+    rdfs:subClassOf :Fiction .
+
+:History rdf:type owl:Class ;
+    rdfs:subClassOf :NonFiction .
 
 :Biography rdf:type owl:Class ;
-          rdfs:subClassOf :NonFiction .
+    rdfs:subClassOf :NonFiction .
 
 :Technical rdf:type owl:Class ;
-          rdfs:subClassOf :NonFiction .
+    rdfs:subClassOf :NonFiction .
 
+# =========================================
+# INFERRED CLASSES
+# =========================================
 
+:FantasyBook rdf:type owl:Class .
 
-# Bestseller class (inferred)
-:Bestseller rdf:type owl:Class ;
-            rdfs:subClassOf :Book .
+:MysteryBook rdf:type owl:Class .
+
+:HistoryBook rdf:type owl:Class .
+
+:BiographyBook rdf:type owl:Class .
+
+:TechnicalBook rdf:type owl:Class .
+
+# =========================================
+# PROPERTIES
+# =========================================
+
+:hasGenre rdf:type owl:ObjectProperty .
+
+:title rdf:type owl:DatatypeProperty .
+:author rdf:type owl:DatatypeProperty .
+:price rdf:type owl:DatatypeProperty .
+:isbn rdf:type owl:DatatypeProperty .
+
+# =========================================
+# REASONING RULES
+# =========================================
+
+:FantasyBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :Fantasy
+            ]
+        )
+    ] .
+
+:MysteryBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :Mystery
+            ]
+        )
+    ] .
+
+:HistoryBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :History
+            ]
+        )
+    ] .
+
+:BiographyBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :Biography
+            ]
+        )
+    ] .
+
+:TechnicalBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :Technical
+            ]
+        )
+    ] .

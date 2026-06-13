@@ -42,8 +42,8 @@ def load_data():
     g.bind("xsd", "http://www.w3.org/2001/XMLSchema#")
     
     try:
-        g.parse("data/books.ttl", format="turtle")
-        g.parse("ontology/book_ontology.owl", format="turtle")
+        g.parse(DATA_PATH, format="turtle")
+        g.parse(ONTOLOGY_PATH, format="turtle")
     except Exception as e:
         st.error(f"Error loading data: {e}")
     
@@ -91,7 +91,7 @@ def get_all_books(graph):
             
             SELECT ?type WHERE {{
                 ?book :title "{str(row.title)}" .
-                ?book rdf:type ?type .
+                ?book :hasGenre ?type .
                 FILTER(?type != :Book && ?type != :Bestseller)
             }}
             LIMIT 1
@@ -214,7 +214,7 @@ def search_by_keyword(graph, keyword):
               :title ?title ;
               :author ?author ;
               :price ?price .
-        ?book rdf:type ?type .
+        ?book :hasGenre ?type .
         FILTER(?type != :Book && ?type != :Bestseller)
         {{
             {title_author_part}
@@ -404,7 +404,7 @@ def get_author_statistics(graph, author_name):
         
         SELECT ?type WHERE {{
             ?book :title "{book_title}" .
-            ?book rdf:type ?type .
+            ?book :hasGenre ?type .
             FILTER(?type != :Book && ?type != :Bestseller)
         }}
         LIMIT 1
@@ -461,7 +461,7 @@ def get_similar_authors(graph, current_author, current_genres, authors_list):
                 
                 SELECT ?type WHERE {{
                     ?book :title "{str(other_row.title)}" .
-                    ?book rdf:type ?type .
+                    ?book :hasGenre ?type .
                     FILTER(?type != :Book && ?type != :Bestseller)
                 }}
                 LIMIT 1
@@ -489,7 +489,7 @@ def get_books_by_genre(graph, genre):
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     
     SELECT ?title ?author ?price WHERE {{
-        ?book rdf:type :{genre} ;
+        ?book :hasGenre :{genre} ;
               :title ?title ;
               :author ?author ;
               :price ?price .
@@ -526,7 +526,7 @@ def get_books_by_author(graph, author_name):
         
         SELECT ?type WHERE {{
             ?book :title "{str(row.title)}" .
-            ?book rdf:type ?type .
+            ?book :hasGenre ?type .
             FILTER(?type != :Book && ?type != :Bestseller)
         }}
         LIMIT 1
@@ -683,7 +683,7 @@ def show_homepage():
 
     with col2:
         st.write("##### Select a category")
-        categories = ["All", "NonFiction", "Fantasy", "Mystery", "Biography", "Technical"]
+        categories = ["All", "NonFiction", "Fantasy", "Mystery", "History", "Biography", "Technical"]
         category = st.selectbox(
             "",
             categories,
@@ -856,7 +856,7 @@ def show_search_page():
     # 3. BROWSE BY GENRE
     elif search_type == "Browse by Genre":
         st.subheader("Browse Books by Genre")
-        genres = ["Fantasy", "Mystery", "NonFiction", "Biography", "Technical"]
+        genres = ["Fantasy", "Mystery", "History", "Biography", "Technical"]
         genre = st.selectbox("Select a genre:", genres)
         
         stats = get_genre_statistics(graph, genre)
