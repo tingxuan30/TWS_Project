@@ -1,11 +1,11 @@
 import streamlit as st
 import rdflib
-from rdflib.namespace import XSD
-from owlready2 import *
 import pandas as pd
 import random
 import os
 from PIL import Image
+from owlrl import RDFS_OWLRL_Semantics
+from rdflib.namespace import RDF, RDFS, OWL
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(BASE_DIR)
@@ -50,20 +50,51 @@ def load_data():
     return g
 
 # ---------------------------
-# 2. REASONING WITH OWLREADY2
+# 2. REASONING WITH RDFS_OWLRL_Semantics
 # ---------------------------
 @st.cache_resource
-def load_ontology_and_reason():
-    """Load ontology and run reasoner to infer new relationships"""
-    try:
-        onto = get_ontology(ONTOLOGY_PATH).load()
-        sync_reasoner()
-        st.success("Ontology reasoning completed!")
-        return onto
-    except Exception as e:
-        st.error(f"Error in ontology reasoning: {e}")
-        return None
+def init_reasoning_graph():
+    """OWL Reasoning (RDFS_OWLRL_Semantics)"""
+    if "inferred_graph" not in st.session_state:
+        with st.spinner("🔮 Running OWL reasoner..."):
+            try:
+                g = rdflib.Graph()
+                g.parse(DATA_PATH, format="turtle")
+                g.parse(ONTOLOGY_PATH, format="turtle")
 
+                inferred = rdflib.Graph()
+                for triple in g:
+                    inferred.add(triple)
+
+                reasoner = RDFS_OWLRL_Semantics(inferred, axioms=True, daxioms=False, rdfs=True)
+                reasoner.closure()
+
+                st.success(f"✅ OWL reasoning completed. Added {len(inferred) - len(g)} inferred triples.")
+                
+                st.session_state.original_graph = g
+                st.session_state.inferred_graph = inferred
+                st.session_state.reasoning_enabled = True
+                return True
+
+            except Exception as e:
+                st.error(f"Reasoning initialization failed: {e}")
+                g = rdflib.Graph()
+                g.parse(DATA_PATH, format="turtle")
+                g.parse(ONTOLOGY_PATH, format="turtle")
+                st.session_state.original_graph = g
+                st.session_state.inferred_graph = g
+                st.session_state.reasoning_enabled = False
+                return False
+
+    return st.session_state.get("reasoning_enabled", False)
+
+def get_active_graph():
+    """Get the currently active graph (prefer inferred graph)"""
+    if st.session_state.get("reasoning_enabled", False):
+        return st.session_state.get("inferred_graph", None)
+    else:
+        return st.session_state.get("original_graph", None)
+    
 # ---------------------------
 # 3. SPARQL QUERY FUNCTIONS
 # ---------------------------
@@ -300,42 +331,107 @@ def filter_by_price(graph, min_price, max_price):
     return pd.DataFrame(results)
 
 def get_similar_books(graph, book_title):
-    """Find books similar to a given book using OWL property (same author or genre)"""
-    author_query = f"""
+    """Find books similar to a given book using OWL reasoning"""
+
+    # Retrieve information about the selected book
+    info_query = f"""
     PREFIX : <http://www.example.org/bookstore#>
-    
-    SELECT ?author WHERE {{
+
+    SELECT ?author ?genre WHERE {{
         ?book :title "{book_title}" ;
               :author ?author .
+        OPTIONAL {{ ?book :hasGenre ?genre . }}
     }}
     """
-    
-    authors = list(graph.query(author_query))
-    if not authors:
+
+    book_info = list(graph.query(info_query))
+    if not book_info:
         return pd.DataFrame()
-    
-    author = str(authors[0][0])
-    
-    query = f"""
-    PREFIX : <http://www.example.org/bookstore#>
-    
-    SELECT ?title ?author WHERE {{
-        ?book :title ?title ;
-              :author "{author}" .
-        FILTER(?title != "{book_title}")
-    }}
-    LIMIT 10
-    """
-    
+
+    author = str(book_info[0][0])
+    genre = str(book_info[0][1]) if book_info[0][1] else None
+    genre_name = genre.split("#")[-1] if genre else None
+
+    # Enhanced similarity calculation using reasoning
+    if st.session_state.get("reasoning_enabled", False) and genre_name:
+        # Method 1: Find books of the same genre using inferred classes
+        query = f"""
+        PREFIX : <http://www.example.org/bookstore#>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+        SELECT DISTINCT ?title ?author ?price WHERE {{
+            {{
+                # Same author
+                ?book :title ?title ;
+                      :author "{author}" ;
+                      :price ?price .
+            }}
+            UNION
+            {{
+                # Same genre (using inferred class)
+                ?book rdf:type :{genre_name}Book ;
+                      :title ?title ;
+                      :author ?author ;
+                      :price ?price .
+            }}
+            FILTER(?title != "{book_title}")
+        }}
+        LIMIT 15
+        """
+    else:
+        # Method 2: Original query based only on author similarity
+        query = f"""
+        PREFIX : <http://www.example.org/bookstore#>
+
+        SELECT ?title ?author ?price WHERE {{
+            ?book :title ?title ;
+                  :author "{author}" ;
+                  :price ?price .
+            FILTER(?title != "{book_title}")
+        }}
+        LIMIT 10
+        """
+
     results = []
     for row in graph.query(query):
+        book_genre_query = f"""
+        PREFIX : <http://www.example.org/bookstore#>
+        
+        SELECT ?genre WHERE {{
+            ?book :title "{str(row.title)}" ;
+                  :hasGenre ?genre .
+        }}
+        LIMIT 1
+        """
+        
+        book_genre = "Unknown"
+        try:
+            genre_result = list(graph.query(book_genre_query))
+            if genre_result:
+                genre_uri = str(genre_result[0][0])
+                book_genre = genre_uri.split("#")[-1]
+        except:
+            pass
+        
         results.append({
             "Title": str(row.title),
             "Author": str(row.author),
-            "Genre": "Unknown"
+            "Genre": book_genre, 
+            "Price (RM)": float(row.price) if row.price else 0
         })
-    
-    return pd.DataFrame(results)
+
+    # Remove duplicate books
+    seen = set()
+    unique_results = []
+    for r in results:
+        if r["Title"] not in seen:
+            seen.add(r["Title"])
+            unique_results.append(r)
+
+    if st.session_state.get("reasoning_enabled", False) and len(unique_results) > 0:
+        st.info(f"🔮 The reasoning engine recommended {len(unique_results)} related books.")
+
+    return pd.DataFrame(unique_results)
 
 def get_genre_statistics(graph, genre):
     """Get statistics for a specific genre"""
@@ -665,9 +761,11 @@ def show_homepage():
     # Header
     st.markdown('<div class="main-header"><h1>📚 Semantic Book Recommender</h1><p>Discover your next favorite book using AI-powered semantic search</p></div>', unsafe_allow_html=True)
     
-    # Load data
-    with st.spinner("Loading book catalog..."):
-        graph = load_data()
+    # Use reasoning
+    graph = get_active_graph() 
+    if graph is None:
+        with st.spinner("Loading book catalog..."):
+            graph = load_data()
     
     # Create two columns for input
     col1, col2 = st.columns(2)
@@ -783,9 +881,11 @@ def show_search_page():
     st.title("Advanced Book Search")
     st.markdown("Use the sidebar to search for books by keyword, price, genre, author, or browse bestsellers!")
     
-    # Load data
-    with st.spinner("Loading book catalog..."):
-        graph = load_data()
+    # Use reasoning
+    graph = get_active_graph() 
+    if graph is None:
+        with st.spinner("Loading book catalog..."):
+            graph = load_data()
     
     # Sidebar navigation
     st.sidebar.header("Search Options")
@@ -990,7 +1090,7 @@ def show_search_page():
     # 5. SIMILAR BOOKS
     elif search_type == "Similar Books":
         st.subheader("Find Similar Books")
-        st.caption("Based on same author — powered by semantic relationships")
+        st.caption("Based on same author and genre (powered by OWL reasoning)")
         
         all_books = get_all_books(graph)
         if not all_books.empty:
@@ -1006,7 +1106,7 @@ def show_search_page():
                             book_title=book['Title'],
                             author=book['Author'],
                             genre=book['Genre'],
-                            price="N/A",
+                            price=book['Price (RM)'], 
                             show_cover=True
                         )
                 else:
@@ -1035,6 +1135,16 @@ def show_search_page():
 def main():
     st.set_page_config(page_title="Semantic Book Recommender", layout="wide", page_icon="📚")
     
+    # Initialize reasoning graph (run only once)
+    reasoning_active = init_reasoning_graph()
+
+    # Display reasoning status in the sidebar
+    if reasoning_active:
+        st.sidebar.success("🔮 OWL Reasoning: Enabled")
+        st.sidebar.info("All searches use reasoning-enhanced semantic relationships")
+    else:
+        st.sidebar.warning("⚠️ OWL Reasoning: Disabled")
+
     # Custom CSS for better styling
     st.markdown("""
     <style>
@@ -1068,7 +1178,7 @@ def main():
     # Footer
     st.markdown("---")
     st.markdown(
-        "<div style='text-align: center; color: #666;'><strong>Semantic Book Store</strong> | Powered by RDFlib, Owlready2, Streamlit | RDF + SPARQL + OWL Inference</div>",
+        "<div style='text-align: center; color: #666;'><strong>Semantic Book Store</strong> | Powered by RDFlib, Streamlit | RDF + SPARQL + OWL Inference</div>",
         unsafe_allow_html=True
     )
 
