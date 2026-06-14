@@ -26,6 +26,22 @@ SYNONYM_MAP = {
     "adventure": ["Fantasy", "action", "adventure", "The Hobbit"],
 }
 
+# Build reverse synonym lookup (e.g., "wizard" <-> "magic")
+def build_reverse_synonym_map():
+    """Create a mapping from any synonym to its primary category/genre"""
+    reverse_map = {}
+    
+    for primary_key, synonym_list in SYNONYM_MAP.items():
+        # Map each synonym back to the primary key
+        for syn in synonym_list:
+            reverse_map[syn.lower()] = primary_key
+        # Also map the primary key to itself
+        reverse_map[primary_key.lower()] = primary_key
+    
+    return reverse_map
+
+REVERSE_SYNONYM_MAP = build_reverse_synonym_map()
+
 # ---------------------------
 # 1. LOAD RDF DATA
 # ---------------------------
@@ -187,54 +203,111 @@ def get_bestseller_recommendations(graph):
         return pd.DataFrame(columns=["Title", "Author", "Price (RM)"])
 
 def search_by_keyword(graph, keyword):
-    """Search books by title, author, or genre with synonym expansion."""
+    """Search books by title, author, or genre with synonym expansion.
+    
+    Args:
+        graph: RDF graph (rdflib.Graph) containing book data
+        keyword: Search term entered by user
+        
+    Returns:
+        pandas.DataFrame with columns: Title, Author, Genre, Price (RM)
+    """
     keyword_lower = keyword.lower().strip()
     
-    # Expand keyword using the synonym map
-    expanded_terms = [keyword_lower]
+    # ============================================
+    # STEP 1: Expand search terms using existing SYNONYM_MAP and REVERSE_SYNONYM_MAP
+    # ============================================
+    expanded_terms = set([keyword_lower])
+    
+    # Method 1: Direct mapping (keyword matches primary key)
     for k, synonyms in SYNONYM_MAP.items():
         if k in keyword_lower or keyword_lower in k:
-            expanded_terms.extend(synonyms)
+            for syn in synonyms:
+                expanded_terms.add(syn.lower())
+            expanded_terms.add(k.lower())
     
-    # Also add the keyword itself capitalized (for genre matching)
-    expanded_terms.append(keyword_lower.capitalize())
-    expanded_terms.append(keyword_lower.title())
+    # Method 2: Reverse mapping using your existing REVERSE_SYNONYM_MAP
+    if keyword_lower in REVERSE_SYNONYM_MAP:
+        primary_category = REVERSE_SYNONYM_MAP[keyword_lower]
+        expanded_terms.add(primary_category.lower())
+        if primary_category in SYNONYM_MAP:
+            for syn in SYNONYM_MAP[primary_category]:
+                expanded_terms.add(syn.lower())
     
-    # Remove duplicates and empty strings
-    expanded_terms = list(set([t for t in expanded_terms if t]))
+    # Method 3: Add capitalized and title-case versions for genre matching
+    terms_to_add = []
+    for term in expanded_terms:
+        terms_to_add.append(term.capitalize())
+        terms_to_add.append(term.title())
+        # Add without spaces (for multi-word genres)
+        if ' ' in term:
+            terms_to_add.append(term.replace(' ', ''))
     
+    for term in terms_to_add:
+        expanded_terms.add(term.lower())
+    
+    # Remove empty strings and very short terms (length < 2)
+    expanded_terms = [t for t in expanded_terms if t and len(t) >= 2]
+    
+    # If no terms expanded, fall back to simple search
     if not expanded_terms:
         return simple_keyword_search(graph, keyword)
     
-    # Build SPARQL FILTER for title/author contains any term
-    title_author_filters = " || ".join([
-        f'CONTAINS(LCASE(?title), "{term.lower()}")' for term in expanded_terms
-    ] + [
-        f'CONTAINS(LCASE(?author), "{term.lower()}")' for term in expanded_terms
-    ])
-    
-    # Build FILTER for genre types (exact match on genre URIs)
-    # Only include terms that look like genre names (alphanumeric, no spaces)
+    # ============================================
+    # STEP 2: Build genre candidates from expanded terms
+    # ============================================
     genre_candidates = set()
     for term in expanded_terms:
-        # Clean term: remove spaces and capitalize properly for genre name
-        clean = term.replace(" ", "").replace("-", "")
-        if clean.isalpha():
+        # Clean term for genre matching
+        clean = term.replace(" ", "").replace("-", "").replace("_", "")
+        if clean.isalpha() and len(clean) > 2:
             genre_candidates.add(clean.capitalize())
             genre_candidates.add(clean)
     
-    if genre_candidates:
-        genre_filters = " || ".join([
-            f'?type = <http://www.example.org/bookstore#{g}>' for g in genre_candidates
-        ])
-    else:
-        genre_filters = "false"  # no genre filter, but keep query valid
+    # Add explicit genre mappings from synonym map primary keys
+    for primary_key in SYNONYM_MAP.keys():
+        primary_lower = primary_key.lower()
+        if any(primary_lower in term or term in primary_lower for term in expanded_terms):
+            genre_candidates.add(primary_key)
     
-    # Only include title/author filter if non-empty
-    if title_author_filters:
-        title_author_part = f"{{ FILTER({title_author_filters}) }}"
+    # ============================================
+    # STEP 3: Build SPARQL query with proper syntax
+    # ============================================
+    # Build title/author filter conditions
+    title_author_conditions = []
+    for term in expanded_terms[:15]:  # Limit to 15 terms for performance
+        term_clean = term.lower().replace("'", "\\'").replace('"', '\\"')
+        title_author_conditions.append(f'CONTAINS(LCASE(?title), "{term_clean}")')
+        title_author_conditions.append(f'CONTAINS(LCASE(?author), "{term_clean}")')
+    
+    # Remove duplicates
+    title_author_conditions = list(set(title_author_conditions))
+    
+    # Build genre filter conditions
+    genre_conditions = []
+    for genre in genre_candidates:
+        genre_conditions.append(f'?type = <http://www.example.org/bookstore#{genre}>')
+    
+    # Build the WHERE clause parts (only include non-empty filters)
+    where_parts = []
+    
+    if title_author_conditions:
+        title_author_filter = " || ".join(title_author_conditions)
+        where_parts.append(f"{{ FILTER({title_author_filter}) }}")
+    
+    if genre_conditions:
+        genre_filter = " || ".join(genre_conditions)
+        where_parts.append(f"{{ FILTER({genre_filter}) }}")
+    
+    # If no filters, fall back to simple search
+    if not where_parts:
+        return simple_keyword_search(graph, keyword)
+    
+    # Build the complete query with UNION
+    if len(where_parts) == 1:
+        where_clause = where_parts[0]
     else:
-        title_author_part = "{{ }}"
+        where_clause = "{ " + " UNION ".join(where_parts) + " }"
     
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
@@ -247,16 +320,13 @@ def search_by_keyword(graph, keyword):
               :price ?price .
         ?book :hasGenre ?type .
         FILTER(?type != :Book && ?type != :Bestseller)
-        {{
-            {title_author_part}
-            UNION
-            {{
-                FILTER({genre_filters})
-            }}
-        }}
+        {where_clause}
     }}
     """
     
+    # ============================================
+    # STEP 4: Execute query and process results
+    # ============================================
     results = []
     try:
         for row in graph.query(query):
@@ -268,6 +338,7 @@ def search_by_keyword(graph, keyword):
                 "Genre": genre,
                 "Price (RM)": float(row.price)
             })
+        
         # Remove duplicates by title
         seen = set()
         unique_results = []
@@ -275,7 +346,9 @@ def search_by_keyword(graph, keyword):
             if r["Title"] not in seen:
                 seen.add(r["Title"])
                 unique_results.append(r)
+        
         return pd.DataFrame(unique_results)
+        
     except Exception as e:
         st.error(f"Synonym search error: {e}. Falling back to simple keyword search.")
         return simple_keyword_search(graph, keyword)
