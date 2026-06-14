@@ -714,36 +714,136 @@ def get_books_by_author(graph, author_name):
         })
     return pd.DataFrame(results)
 
-def get_recommendations_by_description(description, category, graph):
-    """Get book recommendations based on user description and category"""
+def simple_keyword_recommendation(description, category, graph):
+    """Original keyword recommendation method"""
     all_books = get_all_books(graph)
-    
     if all_books.empty:
         return pd.DataFrame()
     
-    # Simple recommendation logic based on keywords
     keywords = description.lower().split()
-    
-    # Score each book based on keyword matches
     scores = []
     for _, book in all_books.iterrows():
         score = 0
         book_text = f"{book['Title']} {book['Author']} {book['Genre']}".lower()
-        
-        for keyword in keywords:
-            if keyword in book_text:
+        for kw in keywords:
+            if kw in book_text:
                 score += 1
-        
-        # Category matching
         if category != "All" and category.lower() in book['Genre'].lower():
             score += 3
-        
         scores.append(score)
     
     all_books['Score'] = scores
     recommendations = all_books[all_books['Score'] > 0].sort_values('Score', ascending=False).head(15)
-    
     return recommendations
+
+def get_recommendations_by_description(description, category, graph):
+    """Get book recommendations based on user description and category"""
+    
+    if not st.session_state.get("reasoning_enabled", False):
+        return simple_keyword_recommendation(description, category, graph)
+    
+    desc_lower = description.lower()
+    
+    target_genres = set()
+    for key, synonyms in SYNONYM_MAP.items():
+        if any(syn.lower() in desc_lower for syn in synonyms):
+            target_genres.add(synonyms[0])
+    
+    if category != "All":
+        target_genres.add(category)
+    
+    if not target_genres:
+        target_genres = None
+    
+    words = desc_lower.split()
+    stopwords = {"a", "an", "the", "and", "of", "to", "for", "with", "on", "at", "by", "is", "are", "was", "were"}
+    keywords = [w for w in words if w not in stopwords and len(w) > 2]
+    
+    all_books_query = """
+    PREFIX : <http://www.example.org/bookstore#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    SELECT ?title ?author ?price ?genreType ?directGenre WHERE {
+        ?book rdf:type :Book ;
+            :title ?title ;
+            :author ?author ;
+            :price ?price .
+        OPTIONAL { ?book :hasGenre ?directGenre . }
+        OPTIONAL { ?book rdf:type ?genreType . FILTER(?genreType != :Book) }
+    }
+    """
+    try:
+        seen_titles = set()
+        results = []
+        for row in graph.query(all_books_query):
+            title = str(row.title)
+            if title in seen_titles:
+                continue 
+            seen_titles.add(title)
+            
+            author = str(row.author)
+            price = float(row.price)
+            
+            inferred_genre = None
+            if row.genreType:
+                type_uri = str(row.genreType)
+                if "#" in type_uri:
+                    inferred_genre = type_uri.split("#")[-1]
+                    if inferred_genre.endswith("Book"):
+                        inferred_genre = inferred_genre[:-4]  
+                    else:
+                        inferred_genre = None
+
+            if not inferred_genre and row.directGenre:
+                direct_uri = str(row.directGenre)
+                if "#" in direct_uri:
+                    inferred_genre = direct_uri.split("#")[-1]
+            
+            results.append({
+                "Title": title,
+                "Author": author,
+                "Price (RM)": price,
+                "InferredGenre": inferred_genre if inferred_genre else "Unknown"
+            })
+        
+        if not results:
+            return pd.DataFrame()
+   
+        scored = []
+        for book in results:
+            score = 0
+            book_text = f"{book['Title']} {book['Author']} {book['InferredGenre']}".lower()
+            
+            if target_genres:
+                for genre in target_genres:
+                    if genre.lower() in book['InferredGenre'].lower():
+                        score += 10
+            
+            for kw in keywords:
+                if kw in book_text:
+                    score += 1
+            
+            if category != "All" and category.lower() in book['InferredGenre'].lower():
+                score += 20
+            
+            if score > 0:
+                scored.append((score, book))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        recommendations = [book for _, book in scored[:15]]
+        
+        if recommendations:
+            df = pd.DataFrame(recommendations)
+            df.rename(columns={"InferredGenre": "Genre"}, inplace=True)
+            st.info(f"🔮 Reasoning engine has recommended to you {len(df)} ")
+            return df
+        else:
+            return pd.DataFrame()
+
+    except Exception as e:
+        import traceback
+        st.error(f"The reasoning recommendation failed. Switching back to the simple mode. {e}")
+        st.code(traceback.format_exc()) 
+        return simple_keyword_recommendation(description, category, graph)
 
 def get_book_cover(book_title):
     """Get book cover image path"""
@@ -1205,19 +1305,206 @@ def show_search_page():
 # ---------------------------
 # 6. MAIN APP
 # ---------------------------
+# Add these helper functions near the beginning of the file
+def verify_file_paths():
+    """Verify that all required files exist"""
+    issues = []
+    
+    # Check whether files exist
+    if not os.path.exists(DATA_PATH):
+        issues.append(f"Data file not found: {DATA_PATH}")
+    else:
+        st.sidebar.success(f"✅ Data file found: {os.path.basename(DATA_PATH)}")
+    
+    if not os.path.exists(ONTOLOGY_PATH):
+        issues.append(f"Ontology file not found: {ONTOLOGY_PATH}")
+    else:
+        st.sidebar.success(f"✅ Ontology file found: {os.path.basename(ONTOLOGY_PATH)}")
+    
+    # Check image directory
+    if not os.path.exists(IMAGE_DIR):
+        st.sidebar.warning(f"Image directory not found: {IMAGE_DIR}")
+    
+    return issues
+
+@st.cache_resource
+def load_books_graph_only():
+    """Load original RDF data only (for testing)"""
+    try:
+        g = rdflib.Graph()
+        
+        # Bind namespaces
+        g.bind("", "http://www.example.org/bookstore#")
+        g.bind("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+        g.bind("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
+        g.bind("owl", "http://www.w3.org/2002/07/owl#")
+        g.bind("xsd", "http://www.w3.org/2001/XMLSchema#")
+        
+        # Check whether files exist
+        if not os.path.exists(DATA_PATH):
+            st.error(f"Data file not found at: {DATA_PATH}")
+            st.info(f"Current working directory: {os.getcwd()}")
+            st.info(f"Looking for: books.ttl")
+            return None
+        
+        if not os.path.exists(ONTOLOGY_PATH):
+            st.error(f"Ontology file not found at: {ONTOLOGY_PATH}")
+            return None
+        
+        # Parse files
+        g.parse(DATA_PATH, format="turtle")
+        g.parse(ONTOLOGY_PATH, format="turtle")
+        
+        # Verify loaded data
+        test_query = list(g.query("""
+            PREFIX : <http://www.example.org/bookstore#>
+            SELECT ?title WHERE { ?book :title ?title } LIMIT 1
+        """))
+        
+        if not test_query:
+            st.error("No books found in the data file")
+            st.info("Please check if books.ttl contains valid book data")
+            return None
+        
+        st.success(f"✅ Successfully loaded {len(g)} triples")
+        return g
+        
+    except Exception as e:
+        st.error(f"Error loading graph: {e}")
+        return None
+
 def main():
     st.set_page_config(page_title="Semantic Book Recommender", layout="wide", page_icon="📚")
     
-    # Initialize reasoning graph (run only once)
-    reasoning_active = init_reasoning_graph()
-
-    # Display reasoning status in the sidebar
-    if reasoning_active:
+    # Display file path information (for debugging)
+    with st.sidebar.expander("🔧 Debug Info", expanded=False):
+        st.write(f"**App path:** `{BASE_DIR}`")
+        st.write(f"**Root path:** `{ROOT_DIR}`")
+        st.write(f"**Data path:** `{DATA_PATH}`")
+        st.write(f"**Ontology path:** `{ONTOLOGY_PATH}`")
+        st.write(f"**Image path:** `{IMAGE_DIR}`")
+        st.write(f"**Working dir:** `{os.getcwd()}`")
+    
+    # Verify file paths
+    file_issues = verify_file_paths()
+    if file_issues:
+        for issue in file_issues:
+            st.error(issue)
+        st.stop()  # Stop execution
+    
+    # Initialize session state
+    if 'initialized' not in st.session_state:
+        st.session_state.initialized = False
+        st.session_state.load_error = None
+    
+    # Use a placeholder to display loading progress
+    loading_placeholder = st.empty()
+    
+    if not st.session_state.initialized:
+        with loading_placeholder.container():
+            st.info("📚 Initializing book catalog and reasoning engine...")
+            progress_bar = st.progress(0)
+            
+            # Step 1: Load RDF data
+            progress_bar.progress(20)
+            st.info("Loading book data...")
+            
+            # Load data directly
+            g = load_data()
+            
+            if g is None or len(g) == 0:
+                st.error("Failed to load data - graph is empty")
+                st.session_state.load_error = "Empty graph"
+                return
+            
+            progress_bar.progress(50)
+            st.info("Verifying data...")
+            
+            # Validate loaded data
+            try:
+                test_query = list(g.query("""
+                    PREFIX : <http://www.example.org/bookstore#>
+                    SELECT ?title ?author WHERE { 
+                        ?book a :Book .
+                        ?book :title ?title .
+                        ?book :author ?author .
+                    } LIMIT 5
+                """))
+                
+                if not test_query:
+                    st.error("No books found in the catalog")
+                    st.info("Please check that books.ttl contains valid :Book entries")
+                    return
+                
+                st.success(f"✅ Found {len(test_query)} sample books")
+                
+            except Exception as e:
+                st.error(f"Query verification failed: {e}")
+                return
+            
+            # Step 2: Run reasoning
+            progress_bar.progress(70)
+            st.info("Running reasoning engine...")
+            
+            try:
+                # Create a copy of the graph for reasoning
+                inferred = rdflib.Graph()
+                for triple in g:
+                    inferred.add(triple)
+                
+                # Run OWL reasoning (may take some time)
+                with st.spinner("Running OWL reasoner (this may take a moment)..."):
+                    reasoner = RDFS_OWLRL_Semantics(inferred, axioms=True, daxioms=False, rdfs=True)
+                    reasoner.closure()
+                    
+                    inferred_triples = len(inferred) - len(g)
+                    if inferred_triples > 0:
+                        st.success(f"✅ Added {inferred_triples} inferred triples")
+                    else:
+                        st.info("No additional inferences made")
+                
+                st.session_state.original_graph = g
+                st.session_state.inferred_graph = inferred
+                st.session_state.reasoning_enabled = True
+                
+            except Exception as e:
+                st.warning(f"Reasoning failed: {e}. Running in basic mode.")
+                st.session_state.original_graph = g
+                st.session_state.inferred_graph = g
+                st.session_state.reasoning_enabled = False
+            
+            progress_bar.progress(100)
+            st.session_state.initialized = True
+            
+            # Brief delay so users can see the completion message
+            import time
+            time.sleep(0.5)
+            loading_placeholder.empty()
+            st.rerun()  # Rerun to display the full interface
+            return
+    
+    # Normal application interface
+    # Retrieve active graph
+    if st.session_state.get("reasoning_enabled", False):
+        graph = st.session_state.get("inferred_graph")
+    else:
+        graph = st.session_state.get("original_graph")
+    
+    # Final validation
+    if graph is None:
+        st.error("Graph is None - initialization failed")
+        if st.button("Retry Loading"):
+            st.session_state.initialized = False
+            st.rerun()
+        return
+    
+    # Display reasoning status
+    if st.session_state.get("reasoning_enabled", False):
         st.sidebar.success("🔮 OWL Reasoning: Enabled")
         st.sidebar.info("All searches use reasoning-enhanced semantic relationships")
     else:
-        st.sidebar.warning("⚠️ OWL Reasoning: Disabled")
-
+        st.sidebar.warning("⚠️ OWL Reasoning: Disabled (basic mode)")
+    
     # Custom CSS for better styling
     st.markdown("""
     <style>
