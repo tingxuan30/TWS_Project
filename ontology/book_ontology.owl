@@ -127,3 +127,22 @@
             ]
         )
     ] .
+
+:rating rdf:type owl:DatatypeProperty ;
+        rdfs:domain :Book ;
+        rdfs:range xsd:decimal ;
+        rdfs:comment "Book rating (0-5 scale)" .
+
+:BestRecommend rdf:type owl:Class ;
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :rating ;
+                owl:minInclusive "4.5"^^xsd:decimal   # threshold for top rating
+            ]
+        )
+    ] ;
+    rdfs:subClassOf :Book .

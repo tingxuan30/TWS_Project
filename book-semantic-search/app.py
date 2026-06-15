@@ -126,6 +126,7 @@ def get_all_books(graph):
         ?book :title ?title .
         ?book :author ?author .
         ?book :price ?price .
+        OPTIONAL { ?book :rating ?rating . }
     }
     """
     results = []
@@ -170,37 +171,25 @@ def get_all_books(graph):
         st.error(f"Error in get_all_books: {e}")
         return pd.DataFrame(columns=["Title", "Author", "Genre", "Price (RM)"])
 
-def get_bestseller_recommendations(graph):
-    """Get books marked as bestsellers"""
+def get_top_rated_recommendations(graph):
     query = """
     PREFIX : <http://www.example.org/bookstore#>
-    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    
-    SELECT ?title ?author ?price WHERE {
-        ?book rdf:type :Bestseller .
-        ?book :title ?title .
-        ?book :author ?author .
-        ?book :price ?price .
+    SELECT ?title ?author ?price ?rating WHERE {
+        ?book :title ?title ;
+              :author ?author ;
+              :price ?price ;
+              :rating ?rating .
+        FILTER(?rating >= 4.5)
     }
     """
     results = []
-    
-    try:
-        for row in graph.query(query):
-            results.append({
-                "Title": str(row.title),
-                "Author": str(row.author),
-                "Price (RM)": float(row.price)
-            })
-        
-        if results:
-            st.info(f"✅ Found {len(results)} bestsellers")
-        
-        return pd.DataFrame(results)
-        
-    except Exception as e:
-        st.error(f"Error in get_bestseller_recommendations: {e}")
-        return pd.DataFrame(columns=["Title", "Author", "Price (RM)"])
+    for row in graph.query(query):
+        results.append({
+            "Title": str(row.title),
+            "Author": str(row.author),
+            "Price (RM)": float(row.price)
+        })
+    return pd.DataFrame(results)
 
 def search_by_keyword(graph, keyword):
     """Search books by title, author, or genre with synonym expansion.
@@ -1053,13 +1042,13 @@ def show_homepage():
     
     # Featured Books Section
     st.markdown("---")
-    st.subheader("Featured Bestsellers")
+    st.subheader("Best Recommend Books")
 
-    bestsellers = get_bestseller_recommendations(graph)
+    best_recommend = get_top_rated_recommendations(graph)
 
-    if not bestsellers.empty:
+    if not best_recommend.empty:
         cols = st.columns(4)
-        for idx, (_, book) in enumerate(bestsellers.head(4).iterrows()):
+        for idx, (_, book) in enumerate(best_recommend.head(4).iterrows()):
             with cols[idx]:
                 cover_path = get_book_cover(book['Title'])
                 with st.container():
@@ -1091,7 +1080,7 @@ def show_homepage():
         total_books = 0
         st.warning("Unable to load book statistics. Please check data files.")
     
-    bestsellers_count = len(bestsellers) if not bestsellers.empty else 0
+    top_rated_count = len(best_recommend) if not best_recommend.empty else 0
     
     with col1:
         st.metric("Total Books", total_books)
@@ -1100,7 +1089,7 @@ def show_homepage():
     with col3:
         st.metric("Genres", unique_genres)
     with col4:
-        st.metric("Bestsellers", bestsellers_count)
+        st.metric("Top Rated", top_rated_count)
 
 # ---------------------------
 # 5. SEARCH PAGE UI
@@ -1109,7 +1098,7 @@ def show_search_page():
     """Display the advanced search page"""
     
     st.title("Advanced Book Search")
-    st.markdown("Use the sidebar to search for books by keyword, price, genre, author, or browse bestsellers!")
+    st.markdown("Use the sidebar to search for books by keyword, price, genre or author!")
     
     # Use reasoning
     graph = get_active_graph() 
@@ -1121,7 +1110,7 @@ def show_search_page():
     st.sidebar.header("Search Options")
     search_type = st.sidebar.radio(
         "Choose search method:",
-        ["Keyword Search", "Price Range", "Browse by Genre", "Browse by Author", "Similar Books", "Bestsellers"]
+        ["Keyword Search", "Price Range", "Browse by Genre", "Browse by Author", "Similar Books"]
     )
     
     # 1. KEYWORD SEARCH
@@ -1343,21 +1332,6 @@ def show_search_page():
                     st.info("No similar books found in the catalog yet.")
         else:
             st.warning("No books available.")
-    
-    # 6. BESTSELLERS
-    elif search_type == "Bestsellers":
-        st.subheader("Bestseller Recommendations")
-        st.info("These books are classified as Bestsellers using OWL reasoning")
-        
-        df = get_bestseller_recommendations(graph)
-        if not df.empty:
-            display_df = df[['Title', 'Author', 'Price (RM)']].copy()
-            display_df.index = range(1, len(display_df) + 1)
-            display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
-            st.dataframe(display_df, use_container_width=True)
-            st.balloons()
-        else:
-            st.warning("No bestseller data available.")
 
 # ---------------------------
 # 6. MAIN APP

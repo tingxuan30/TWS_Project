@@ -11,43 +11,50 @@
     :title "Harry Potter and the Sorcerer's Stone" ;
     :author "J.K. Rowling" ;
     :price "29.90"^^xsd:decimal ;
-    :isbn "9780439708180" .
+    :isbn "9780439708180" ;
+    :rating "4.9"^^xsd:decimal .
 
 :HarryPotter2 rdf:type :Book ;
     :hasGenre :Fantasy ;
     :title "Harry Potter and the Chamber of Secrets" ;
     :author "J.K. Rowling" ;
-    :price "32.50"^^xsd:decimal .
+    :price "32.50"^^xsd:decimal ;
+    :rating "4.7"^^xsd:decimal .
 
 :HarryPotter3 rdf:type :Book ;
     :hasGenre :Fantasy ;
     :title "Harry Potter and the Prisoner of Azkaban" ;
     :author "J.K. Rowling" ;
-    :price "35.90"^^xsd:decimal .
+    :price "35.90"^^xsd:decimal ;
+    :rating "3.0"^^xsd:decimal .
 
 :GameOfThrones rdf:type :Book ;
     :hasGenre :Fantasy ;
     :title "A Game of Thrones" ;
     :author "George R.R. Martin" ;
-    :price "45.00"^^xsd:decimal .
+    :price "45.00"^^xsd:decimal ;
+    :rating "4.9"^^xsd:decimal .
 
 :ClashOfKings rdf:type :Book ;
     :hasGenre :Fantasy ;
     :title "A Clash of Kings" ;
     :author "George R.R. Martin" ;
-    :price "48.00"^^xsd:decimal .
+    :price "48.00"^^xsd:decimal ;
+    :rating "3.5"^^xsd:decimal .
 
 :TheHobbit rdf:type :Book ;
     :hasGenre :Fantasy ;
     :title "The Hobbit" ;
     :author "J.R.R. Tolkien" ;
-    :price "35.90"^^xsd:decimal .
+    :price "35.90"^^xsd:decimal ;
+    :rating "4.1"^^xsd:decimal .
 
 :FellowshipOfRing rdf:type :Book ;
     :hasGenre :Fantasy ;
     :title "The Fellowship of the Ring" ;
     :author "J.R.R. Tolkien" ;
-    :price "42.00"^^xsd:decimal .
+    :price "42.00"^^xsd:decimal ;
+    :rating "4.7"^^xsd:decimal .
 
 # =========================================
 # MYSTERY
@@ -57,19 +64,22 @@
     :hasGenre :Mystery ;
     :title "The Da Vinci Code" ;
     :author "Dan Brown" ;
-    :price "42.00"^^xsd:decimal .
+    :price "42.00"^^xsd:decimal ;
+    :rating "4.8"^^xsd:decimal .
 
 :AngelsAndDemons rdf:type :Book ;
     :hasGenre :Mystery ;
     :title "Angels & Demons" ;
     :author "Dan Brown" ;
-    :price "38.00"^^xsd:decimal .
+    :price "38.00"^^xsd:decimal ;
+    :rating "2.6"^^xsd:decimal .
 
 :GoneGirl rdf:type :Book ;
     :hasGenre :Mystery ;
     :title "Gone Girl" ;
     :author "Gillian Flynn" ;
-    :price "44.90"^^xsd:decimal .
+    :price "44.90"^^xsd:decimal ;
+    :rating "3.9"^^xsd:decimal .
 
 # =========================================
 # HISTORY
@@ -79,13 +89,15 @@
     :hasGenre :History ;
     :title "Sapiens: A Brief History of Humankind" ;
     :author "Yuval Noah Harari" ;
-    :price "59.90"^^xsd:decimal .
+    :price "59.90"^^xsd:decimal ;
+    :rating "3.3"^^xsd:decimal .
 
 :HomoDeus rdf:type :Book ;
     :hasGenre :History ;
     :title "Homo Deus: A Brief History of Tomorrow" ;
     :author "Yuval Noah Harari" ;
-    :price "64.90"^^xsd:decimal .
+    :price "64.90"^^xsd:decimal ;
+    :rating "4.0"^^xsd:decimal .
 
 # =========================================
 # BIOGRAPHY
@@ -95,7 +107,8 @@
     :hasGenre :Biography ;
     :title "Becoming" ;
     :author "Michelle Obama" ;
-    :price "52.00"^^xsd:decimal .
+    :price "52.00"^^xsd:decimal ;
+    :rating "2.3"^^xsd:decimal .
 
 # =========================================
 # TECHNICAL
@@ -105,4 +118,5 @@
     :hasGenre :Technical ;
     :title "Clean Code: A Handbook of Agile Software Craftsmanship" ;
     :author "Robert C. Martin" ;
-    :price "89.90"^^xsd:decimal .
+    :price "89.90"^^xsd:decimal ;
+    :rating "4.1"^^xsd:decimal .
