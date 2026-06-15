@@ -756,113 +756,150 @@ def simple_keyword_recommendation(description, category, graph):
     recommendations = all_books[all_books['Score'] > 0].sort_values('Score', ascending=False).head(15)
     return recommendations
 
+def extract_genres_from_description(description):
+    desc_lower = description.lower()
+
+    target_genres = set()
+
+    # check each word that the user has input
+    words = desc_lower.split()
+
+    for word in words:
+
+        # wizard -> magic
+        if word in REVERSE_SYNONYM_MAP:
+
+            primary = REVERSE_SYNONYM_MAP[word]
+
+            # magic -> Fantasy
+            if primary == "magic":
+                target_genres.add("Fantasy")
+
+            elif primary == "detective":
+                target_genres.add("Mystery")
+
+            elif primary == "coding":
+                target_genres.add("Technical")
+
+            elif primary == "history":
+                target_genres.add("History")
+
+            elif primary == "real life":
+                target_genres.add("NonFiction")
+
+    return target_genres
+
 def get_recommendations_by_description(description, category, graph):
-    """Get book recommendations based on user description and category"""
-    
+    """
+    OWL reasoning based book recommendation.
+    Extracts genres from description, uses inferred types, and scores books.
+    """
     if not st.session_state.get("reasoning_enabled", False):
         return simple_keyword_recommendation(description, category, graph)
-    
+
     desc_lower = description.lower()
-    
+
+    # Extract target genres from the description 
     target_genres = set()
-    for key, synonyms in SYNONYM_MAP.items():
-        if any(syn.lower() in desc_lower for syn in synonyms):
-            target_genres.add(synonyms[0])
-    
+    # map each genre to its list of keywords
+    target_genres = extract_genres_from_description(description)
+
+    # If user explicitly selected a category, add it
     if category != "All":
         target_genres.add(category)
-    
-    if not target_genres:
-        target_genres = None
-    
+
+    # Extract meaningful keywords (skip stop words) 
+    stopwords = {"a", "an", "the", "and", "of", "to", "for", "with", "on", "at", "by",
+                 "is", "are", "was", "were", "i", "want", "about", "book", "books"}
     words = desc_lower.split()
-    stopwords = {"a", "an", "the", "and", "of", "to", "for", "with", "on", "at", "by", "is", "are", "was", "were"}
-    keywords = [w for w in words if w not in stopwords and len(w) > 2]
-    
-    all_books_query = """
+    keywords = {w for w in words if w not in stopwords and len(w) > 2}
+
+    # SPARQL query to get all books with their inferred genres 
+    # We query both direct :hasGenre and the inferred rdf:type (e.g., :FantasyBook)
+    query = """
     PREFIX : <http://www.example.org/bookstore#>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    SELECT ?title ?author ?price ?genreType ?directGenre WHERE {
+    SELECT DISTINCT ?title ?author ?price ?directGenre ?type WHERE {
         ?book rdf:type :Book ;
-            :title ?title ;
-            :author ?author ;
-            :price ?price .
+              :title ?title ;
+              :author ?author ;
+              :price ?price .
         OPTIONAL { ?book :hasGenre ?directGenre . }
-        OPTIONAL { ?book rdf:type ?genreType . FILTER(?genreType != :Book) }
+        OPTIONAL { ?book rdf:type ?type . FILTER(?type != :Book && ?type != :Bestseller) }
     }
     """
     try:
-        seen_titles = set()
         results = []
-        for row in graph.query(all_books_query):
-            title = str(row.title)
-            if title in seen_titles:
-                continue 
-            seen_titles.add(title)
-            
-            author = str(row.author)
-            price = float(row.price)
-            
+        for row in graph.query(query):
+            # Extract genre from inferred type (e.g., :FantasyBook → "Fantasy")
             inferred_genre = None
-            if row.genreType:
-                type_uri = str(row.genreType)
+            if row.type:
+                type_uri = str(row.type)
                 if "#" in type_uri:
-                    inferred_genre = type_uri.split("#")[-1]
-                    if inferred_genre.endswith("Book"):
-                        inferred_genre = inferred_genre[:-4]  
-                    else:
-                        inferred_genre = None
-
+                    class_name = type_uri.split("#")[-1]
+                    if class_name.endswith("Book"):
+                        inferred_genre = class_name[:-4]   # remove "Book"
+            # Fallback to direct genre if no inferred type
             if not inferred_genre and row.directGenre:
                 direct_uri = str(row.directGenre)
                 if "#" in direct_uri:
                     inferred_genre = direct_uri.split("#")[-1]
-            
-            results.append({
-                "Title": title,
-                "Author": author,
-                "Price (RM)": price,
-                "InferredGenre": inferred_genre if inferred_genre else "Unknown"
-            })
-        
+
+            # Only keep books that have a recognizable genre
+            if inferred_genre and inferred_genre in {"Fantasy", "Mystery", "History", "Biography", "Technical", "NonFiction"}:
+                results.append({
+                    "Title": str(row.title),
+                    "Author": str(row.author),
+                    "Price (RM)": float(row.price),
+                    "Genre": inferred_genre
+                })
+
+        seen = set()
+        unique_results = []
+        for book in results:
+            if book["Title"] not in seen:
+                seen.add(book["Title"])
+                unique_results.append(book)
+        results = unique_results
+
         if not results:
             return pd.DataFrame()
-   
-        scored = []
+
+        # score each book 
+        scored_books = []
         for book in results:
             score = 0
-            book_text = f"{book['Title']} {book['Author']} {book['InferredGenre']}".lower()
-            
-            if target_genres:
-                for genre in target_genres:
-                    if genre.lower() in book['InferredGenre'].lower():
-                        score += 10
-            
+            book_text = f"{book['Title']} {book['Author']}".lower()
+
+            # Genre match 
+            if book['Genre'] in target_genres:
+                score += 30
+
+            # Keyword match in title/author
             for kw in keywords:
                 if kw in book_text:
-                    score += 1
-            
-            if category != "All" and category.lower() in book['InferredGenre'].lower():
-                score += 20
-            
-            if score > 0:
-                scored.append((score, book))
+                    score += 5
 
-        scored.sort(key=lambda x: x[0], reverse=True)
-        recommendations = [book for _, book in scored[:15]]
-        
+            # Category override
+            if category != "All" and category == book['Genre']:
+                score += 20
+
+            if score > 0:
+                scored_books.append((score, book))
+
+        # Sort by score descending
+        scored_books.sort(key=lambda x: x[0], reverse=True)
+        recommendations = [book for _, book in scored_books[:15]]
+
         if recommendations:
             df = pd.DataFrame(recommendations)
-            df.rename(columns={"InferredGenre": "Genre"}, inplace=True)
-            st.info(f"🔮 Reasoning engine has recommended to you {len(df)} ")
+            st.info(f"🔮 Reasoning engine found {len(df)} relevant books for your description.")
             return df
         else:
             return pd.DataFrame()
 
     except Exception as e:
-        import traceback
-        st.error(f"The reasoning recommendation failed. Switching back to the simple mode. {e}")
-        st.code(traceback.format_exc()) 
+        st.error(f"Reasoning recommendation failed: {e}. Falling back to simple mode.")
         return simple_keyword_recommendation(description, category, graph)
 
 def get_book_cover(book_title):
