@@ -467,6 +467,26 @@ def get_similar_books(graph, book_title):
 
     results = []
     for row in graph.query(query):
+        # Check if row.author is None or empty
+        if row.author is None:
+            # If author is missing in this result, fetch it separately
+            author_query = f"""
+            PREFIX : <http://www.example.org/bookstore#>
+            
+            SELECT ?author WHERE {{
+                ?book :title "{str(row.title)}" ;
+                      :author ?author .
+            }}
+            LIMIT 1
+            """
+            try:
+                author_result = list(graph.query(author_query))
+                book_author = str(author_result[0][0]) if author_result else "Unknown"
+            except:
+                book_author = "Unknown"
+        else:
+            book_author = str(row.author)
+        
         book_genre_query = f"""
         PREFIX : <http://www.example.org/bookstore#>
         
@@ -488,7 +508,7 @@ def get_similar_books(graph, book_title):
         
         results.append({
             "Title": str(row.title),
-            "Author": str(row.author),
+            "Author": book_author,
             "Genre": book_genre, 
             "Price (RM)": float(row.price) if row.price else 0
         })
