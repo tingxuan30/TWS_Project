@@ -518,146 +518,136 @@ def get_similar_books(graph, book_title):
 def get_genre_statistics(graph, genre):
     """Get statistics for a specific genre"""
     df = get_books_by_genre(graph, genre)
-    
     if df.empty:
-        return {
-            "total_books": 0,
-            "authors": [],
-            "bestseller_count": 0
-        }
+        return { "total_books": 0, "authors": [], "bestrecommend_count": 0 }
     
-    bestseller_query = """
+    bestrecommend_query = f"""
     PREFIX : <http://www.example.org/bookstore#>
-    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    
-    SELECT ?title WHERE {
-        ?book rdf:type :Bestseller .
-        ?book :title ?title .
-    }
+    SELECT ?title WHERE {{
+        ?book :title ?title ;
+              :hasGenre :{genre} ;
+              :rating ?rating .
+        FILTER(?rating >= 4.5)
+    }}
     """
-    global_bestsellers = {str(row.title) for row in graph.query(bestseller_query)}
+    global_bestrecommend = {str(row.title) for row in graph.query(bestrecommend_query)}
     
-    bestseller_count = sum(1 for _, book in df.iterrows() if book['Title'] in global_bestsellers)
+    bestrecommend_count = sum(1 for _, book in df.iterrows() if book['Title'] in global_bestrecommend)
     
     return {
         "total_books": len(df),
         "authors": df['Author'].unique().tolist(),
-        "bestseller_count": bestseller_count
+        "bestrecommend_count": bestrecommend_count
     }
 
 def get_author_statistics(graph, author_name):
-    """Get statistics for a specific author"""
-    bestseller_query = """
-    PREFIX : <http://www.example.org/bookstore#>
-    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    
-    SELECT ?title WHERE {
-        ?book rdf:type :Bestseller .
-        ?book :title ?title .
-    }
-    """
-    global_bestsellers = {str(row.title) for row in graph.query(bestseller_query)}
-    
+    """Get statistics for a specific author, using rating >= 4.5 as best recommend."""
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
-    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    
-    SELECT ?title ?price WHERE {{
+    SELECT ?title ?price ?rating WHERE {{
         ?book :title ?title ;
               :author "{author_name}" ;
-              :price ?price .
+              :price ?price ;
+              :rating ?rating .
     }}
     """
-    
     results = []
-    bestseller_count = 0
+    bestrecommend_count = 0
     genres_set = set()
-    
+
     for row in graph.query(query):
         book_title = str(row.title)
-        
+        rating = float(row.rating) if row.rating else 0.0
+
         genre_query = f"""
         PREFIX : <http://www.example.org/bookstore#>
-        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-        
         SELECT ?type WHERE {{
             ?book :title "{book_title}" .
             ?book :hasGenre ?type .
-            FILTER(?type != :Book && ?type != :Bestseller)
+            FILTER(?type != :Book && ?type != :BestRecommend)
         }}
         LIMIT 1
         """
-        
         genre = "Unknown"
         genre_results = list(graph.query(genre_query))
         if genre_results:
             genre_uri = str(genre_results[0][0])
             genre = genre_uri.split("#")[-1]
             genres_set.add(genre)
-        
-        is_bestseller = book_title in global_bestsellers
-        if is_bestseller:
-            bestseller_count += 1
-        
+
+        is_bestrecommend = rating >= 4.5
+        if is_bestrecommend:
+            bestrecommend_count += 1
+
         results.append({
             "Title": book_title,
             "Genre": genre,
             "Price (RM)": float(row.price),
-            "Bestseller": "✅" if is_bestseller else "❌"
+            "Best Recommend": "✅" if is_bestrecommend else "❌"
         })
-    
+
     df = pd.DataFrame(results)
-    
     return {
         "df": df,
         "total_books": len(df),
-        "bestseller_count": bestseller_count,
+        "bestrecommend_count": bestrecommend_count,
         "genres": sorted(list(genres_set))
     }
 
+def get_author_genres(graph, author):
+    """Get all genres for an author using OWL reasoning."""
+    genres = set()
+
+    query_has = f"""
+    PREFIX : <http://www.example.org/bookstore#>
+    SELECT DISTINCT ?genre WHERE {{
+        ?book :author "{author}" ;
+              :hasGenre ?genre .
+    }}
+    """
+    for row in graph.query(query_has):
+        genre_uri = str(row.genre)
+        if "#" in genre_uri:
+            genres.add(genre_uri.split("#")[-1])
+        else:
+            genres.add(genre_uri)
+
+    query_type = f"""
+    PREFIX : <http://www.example.org/bookstore#>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    SELECT DISTINCT ?type WHERE {{
+        ?book :author "{author}" ;
+              rdf:type ?type .
+        FILTER(?type != :Book && ?type != :BestRecommend)
+    }}
+    """
+    for row in graph.query(query_type):
+        type_uri = str(row.type)
+        if "#" in type_uri:
+            class_name = type_uri.split("#")[-1]
+            genres.add(class_name)
+
+    return genres
+
+
 def get_similar_authors(graph, current_author, current_genres, authors_list):
-    """Get similar authors based on shared genres"""
+    """Find authors who share at least one genre with the current author."""
+    current_genre_set = set(current_genres) if current_genres else get_author_genres(graph, current_author)
+
     similar_authors = []
-    
     for other_author in authors_list:
-        if other_author != current_author:
-            other_query = f"""
-            PREFIX : <http://www.example.org/bookstore#>
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            
-            SELECT ?title WHERE {{
-                ?book :title ?title ;
-                      :author "{other_author}" .
-            }}
-            """
-            
-            other_genres = set()
-            for other_row in graph.query(other_query):
-                other_genre_query = f"""
-                PREFIX : <http://www.example.org/bookstore#>
-                PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-                
-                SELECT ?type WHERE {{
-                    ?book :title "{str(other_row.title)}" .
-                    ?book :hasGenre ?type .
-                    FILTER(?type != :Book && ?type != :Bestseller)
-                }}
-                LIMIT 1
-                """
-                
-                other_genre_results = list(graph.query(other_genre_query))
-                if other_genre_results:
-                    other_genre_uri = str(other_genre_results[0][0])
-                    other_genre = other_genre_uri.split("#")[-1]
-                    other_genres.add(other_genre)
-            
-            shared_genres = current_genres.intersection(other_genres)
-            if shared_genres:
-                similar_authors.append({
-                    "name": other_author,
-                    "shared_genres": shared_genres
-                })
-    
+        if other_author == current_author:
+            continue
+
+        other_genres = get_author_genres(graph, other_author)
+        shared = current_genre_set.intersection(other_genres)
+
+        if shared:
+            similar_authors.append({
+                "name": other_author,
+                "shared_genres": shared
+            })
+
     return similar_authors
 
 def get_books_by_genre(graph, genre):
@@ -705,7 +695,7 @@ def get_books_by_author(graph, author_name):
         SELECT ?type WHERE {{
             ?book :title "{str(row.title)}" .
             ?book :hasGenre ?type .
-            FILTER(?type != :Book && ?type != :Bestseller)
+            FILTER(?type != :Book && ?type != :BestRecommend)
         }}
         LIMIT 1
         """
@@ -1231,7 +1221,7 @@ def show_search_page():
                 with col1:
                     st.metric("Total Books", author_stats["total_books"])
                 with col2:
-                    st.metric("Bestseller Books", author_stats["bestseller_count"])
+                    st.metric("Best Recommend Books", author_stats["bestrecommend_count"])
                 with col3:
                     st.metric("Genres", ", ".join(author_stats["genres"]) if author_stats["genres"] else "Unknown")
                 
@@ -1247,7 +1237,7 @@ def show_search_page():
                     )
                 
                 with st.expander("View as table"):
-                    display_df = df[['Title', 'Genre', 'Price (RM)', 'Bestseller']].copy()
+                    display_df = df[['Title', 'Genre', 'Price (RM)', 'Best Recommend']].copy()
                     display_df.index = range(1, len(display_df) + 1)
                     display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
                     st.dataframe(display_df, use_container_width=True)
@@ -1282,8 +1272,8 @@ def show_search_page():
                                     st.markdown(f"**{book['Title']}**")
                                     st.markdown(f"*{book['Genre']}*")
                                     st.markdown(f"RM {book['Price (RM)']:.2f}")
-                                    if book['Bestseller'] == "✅":
-                                        st.markdown("⭐ Bestseller")
+                                    if book['Best Recommend'] == "✅":
+                                        st.markdown("⭐ Best Recommend")
                                 st.markdown("---")
                             
                             if len(sim_df) > 3:
@@ -1299,7 +1289,7 @@ def show_search_page():
                                             st.markdown(f"**{book['Title']}**")
                                             st.markdown(f"*{book['Genre']}*")
                                             st.markdown(f"RM {book['Price (RM)']:.2f}")
-                                            st.markdown("⭐ Bestseller")
+                                            st.markdown("⭐ Best Recommend")
                                             st.markdown("---")
                 else:
                     st.info("No similar authors found based on shared genres.")
