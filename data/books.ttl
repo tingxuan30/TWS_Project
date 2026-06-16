@@ -3,7 +3,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 # =========================================
-# FANTASY
+# FANTASY (7 books)
 # =========================================
 
 :HarryPotter1 rdf:type :Book ;
@@ -57,7 +57,7 @@
     :rating "4.7"^^xsd:decimal .
 
 # =========================================
-# MYSTERY
+# MYSTERY (4 books)
 # =========================================
 
 :DaVinciCode rdf:type :Book ;
@@ -74,15 +74,111 @@
     :price "38.00"^^xsd:decimal ;
     :rating "2.6"^^xsd:decimal .
 
-:GoneGirl rdf:type :Book ;
+:TheGirlWithDragonTattoo rdf:type :Book ;
     :hasGenre :Mystery ;
+    :title "The Girl with the Dragon Tattoo" ;
+    :author "Stieg Larsson" ;
+    :price "46.90"^^xsd:decimal ;
+    :rating "4.3"^^xsd:decimal .
+
+:TheSilenceOfTheLambs rdf:type :Book ;
+    :hasGenre :Mystery ;
+    :title "The Silence of the Lambs" ;
+    :author "Thomas Harris" ;
+    :price "39.90"^^xsd:decimal ;
+    :rating "4.2"^^xsd:decimal .
+
+# =========================================
+# ROMANCE (4 books)
+# =========================================
+
+:PrideAndPrejudice rdf:type :Book ;
+    :hasGenre :Romance ;
+    :title "Pride and Prejudice" ;
+    :author "Jane Austen" ;
+    :price "35.00"^^xsd:decimal ;
+    :rating "4.9"^^xsd:decimal .
+
+:JaneEyre rdf:type :Book ;
+    :hasGenre :Romance ;
+    :title "Jane Eyre" ;
+    :author "Charlotte Bronte" ;
+    :price "32.00"^^xsd:decimal ;
+    :rating "4.4"^^xsd:decimal .
+
+:Outlander rdf:type :Book ;
+    :hasGenre :Romance ;
+    :title "Outlander" ;
+    :author "Diana Gabaldon" ;
+    :price "55.00"^^xsd:decimal ;
+    :rating "4.3"^^xsd:decimal .
+
+:TheNotebook rdf:type :Book ;
+    :hasGenre :Romance ;
+    :title "The Notebook" ;
+    :author "Nicholas Sparks" ;
+    :price "38.00"^^xsd:decimal ;
+    :rating "4.0"^^xsd:decimal .
+
+# =========================================
+# YOUNG ADULT (4 books)
+# =========================================
+
+:TheHungerGames rdf:type :Book ;
+    :hasGenre :YoungAdult ;
+    :title "The Hunger Games" ;
+    :author "Suzanne Collins" ;
+    :price "42.00"^^xsd:decimal ;
+    :rating "4.7"^^xsd:decimal .
+
+:CatchingFire rdf:type :Book ;
+    :hasGenre :YoungAdult ;
+    :title "Catching Fire" ;
+    :author "Suzanne Collins" ;
+    :price "44.00"^^xsd:decimal ;
+    :rating "4.6"^^xsd:decimal .
+
+:TheFaultInOurStars rdf:type :Book ;
+    :hasGenre :YoungAdult ;
+    :title "The Fault in Our Stars" ;
+    :author "John Green" ;
+    :price "36.00"^^xsd:decimal ;
+    :rating "4.3"^^xsd:decimal .
+
+:Divergent rdf:type :Book ;
+    :hasGenre :YoungAdult ;
+    :title "Divergent" ;
+    :author "Veronica Roth" ;
+    :price "38.00"^^xsd:decimal ;
+    :rating "4.0"^^xsd:decimal .
+
+# =========================================
+# THRILLER (3 books)
+# =========================================
+
+:TheShining rdf:type :Book ;
+    :hasGenre :Thriller ;
+    :title "The Shining" ;
+    :author "Stephen King" ;
+    :price "40.00"^^xsd:decimal ;
+    :rating "4.5"^^xsd:decimal .
+
+:TheSilentPatient rdf:type :Book ;
+    :hasGenre :Thriller ;
+    :title "The Silent Patient" ;
+    :author "Alex Michaelides" ;
+    :price "48.00"^^xsd:decimal ;
+    :rating "4.2"^^xsd:decimal .
+
+:GoneGirl rdf:type :Book ;
+    :hasGenre :Thriller ;
     :title "Gone Girl" ;
     :author "Gillian Flynn" ;
     :price "44.90"^^xsd:decimal ;
     :rating "3.9"^^xsd:decimal .
 
 # =========================================
-# HISTORY
+# HISTORY (4 books)
 # =========================================
 
 :Sapiens rdf:type :Book ;
@@ -99,8 +195,22 @@
     :price "64.90"^^xsd:decimal ;
     :rating "4.0"^^xsd:decimal .
 
+:TheGunsOfAugust rdf:type :Book ;
+    :hasGenre :History ;
+    :title "The Guns of August" ;
+    :author "Barbara W. Tuchman" ;
+    :price "55.00"^^xsd:decimal ;
+    :rating "4.5"^^xsd:decimal .
+
+:TheRiseAndFallOfAncientEgypt rdf:type :Book ;
+    :hasGenre :History ;
+    :title "The Rise and Fall of Ancient Egypt" ;
+    :author "Toby Wilkinson" ;
+    :price "72.00"^^xsd:decimal ;
+    :rating "4.2"^^xsd:decimal .
+
 # =========================================
-# BIOGRAPHY
+# BIOGRAPHY (4 books)
 # =========================================
 
 :Becoming rdf:type :Book ;
@@ -110,8 +220,29 @@
     :price "52.00"^^xsd:decimal ;
     :rating "2.3"^^xsd:decimal .
 
+:SteveJobs rdf:type :Book ;
+    :hasGenre :Biography ;
+    :title "Steve Jobs" ;
+    :author "Walter Isaacson" ;
+    :price "68.00"^^xsd:decimal ;
+    :rating "4.6"^^xsd:decimal .
+
+:TheDiaryOfAnneFrank rdf:type :Book ;
+    :hasGenre :Biography ;
+    :title "The Diary of a Young Girl" ;
+    :author "Anne Frank" ;
+    :price "38.00"^^xsd:decimal ;
+    :rating "4.8"^^xsd:decimal .
+
+:LongWalkToFreedom rdf:type :Book ;
+    :hasGenre :Biography ;
+    :title "Long Walk to Freedom" ;
+    :author "Nelson Mandela" ;
+    :price "62.00"^^xsd:decimal ;
+    :rating "4.7"^^xsd:decimal .
+
 # =========================================
-# TECHNICAL
+# TECHNICAL (4 books)
 # =========================================
 
 :CleanCode rdf:type :Book ;
@@ -120,3 +251,74 @@
     :author "Robert C. Martin" ;
     :price "89.90"^^xsd:decimal ;
     :rating "4.1"^^xsd:decimal .
+
+:ThePragmaticProgrammer rdf:type :Book ;
+    :hasGenre :Technical ;
+    :title "The Pragmatic Programmer" ;
+    :author "David Thomas" ;
+    :price "79.90"^^xsd:decimal ;
+    :rating "4.5"^^xsd:decimal .
+
+:IntroductionToAlgorithms rdf:type :Book ;
+    :hasGenre :Technical ;
+    :title "Introduction to Algorithms" ;
+    :author "Thomas H. Cormen" ;
+    :price "120.00"^^xsd:decimal ;
+    :rating "4.3"^^xsd:decimal .
+
+:DesignPatterns rdf:type :Book ;
+    :hasGenre :Technical ;
+    :title "Design Patterns: Elements of Reusable Object-Oriented Software" ;
+    :author "Erich Gamma" ;
+    :price "95.00"^^xsd:decimal ;
+    :rating "4.4"^^xsd:decimal .
+
+# =========================================
+# COOKBOOK (3 books)
+# =========================================
+
+:JoyOfCooking rdf:type :Book ;
+    :hasGenre :Cookbook ;
+    :title "The Joy of Cooking" ;
+    :author "Irma S. Rombauer" ;
+    :price "65.00"^^xsd:decimal ;
+    :rating "4.5"^^xsd:decimal .
+
+:MasteringTheArtOfFrenchCooking rdf:type :Book ;
+    :hasGenre :Cookbook ;
+    :title "Mastering the Art of French Cooking" ;
+    :author "Julia Child" ;
+    :price "78.00"^^xsd:decimal ;
+    :rating "4.6"^^xsd:decimal .
+
+:OttolenghiSimple rdf:type :Book ;
+    :hasGenre :Cookbook ;
+    :title "Ottolenghi Simple" ;
+    :author "Yotam Ottolenghi" ;
+    :price "62.00"^^xsd:decimal ;
+    :rating "4.3"^^xsd:decimal .
+
+# =========================================
+# EDUCATION (3 books)
+# =========================================
+
+:PedagogyOfTheOppressed rdf:type :Book ;
+    :hasGenre :Education ;
+    :title "Pedagogy of the Oppressed" ;
+    :author "Paulo Freire" ;
+    :price "45.00"^^xsd:decimal ;
+    :rating "4.4"^^xsd:decimal .
+
+:Mindset rdf:type :Book ;
+    :hasGenre :Education ;
+    :title "Mindset: The New Psychology of Success" ;
+    :author "Carol S. Dweck" ;
+    :price "42.00"^^xsd:decimal ;
+    :rating "4.6"^^xsd:decimal .
+
+:HowToWinFriends rdf:type :Book ;
+    :hasGenre :Education ;
+    :title "How to Win Friends and Influence People" ;
+    :author "Dale Carnegie" ;
+    :price "38.00"^^xsd:decimal ;
+    :rating "4.8"^^xsd:decimal .

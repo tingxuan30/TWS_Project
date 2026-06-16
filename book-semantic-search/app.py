@@ -825,7 +825,10 @@ def get_recommendations_by_description(description, category, graph):
                     inferred_genre = direct_uri.split("#")[-1]
 
             # Only keep books that have a recognizable genre
-            if inferred_genre and inferred_genre in {"Fantasy", "Mystery", "History", "Biography", "Technical", "NonFiction"}:
+            if inferred_genre and inferred_genre in {
+                    "Fantasy", "Mystery", "Romance", "YoungAdult", "Thriller",
+                    "History", "Biography", "Technical", "Cookbook", "Education", "NonFiction"
+                }:
                 results.append({
                     "Title": str(row.title),
                     "Author": str(row.author),
@@ -884,20 +887,85 @@ def get_recommendations_by_description(description, category, graph):
 def get_book_cover(book_title):
     """Get book cover image path"""
     cover_mapping = {
-        "Harry Potter and the Sorcerer's Stone": "HP1",
-        "Harry Potter and the Chamber of Secrets": "HP2",
-        "Harry Potter and the Prisoner of Azkaban": "HP3",
-        "A Game of Thrones": "GT",
-        "A Clash of Kings": "CK",
+        # =========================================
+        # FANTASY (7 books)
+        # =========================================
+        "Harry Potter and the Sorcerer's Stone": "HarryPotterandtheSorcerersStone",
+        "Harry Potter and the Chamber of Secrets": "HarryPotterandtheChamberofSecrets",
+        "Harry Potter and the Prisoner of Azkaban": "HarryPotterandthePrisonerofAzkaban",
+        "A Game of Thrones": "AGameofThrones",
+        "A Clash of Kings": "AClashofKings",
         "The Hobbit": "TheHobbit",
-        "The Fellowship of the Ring": "The_Fellowship_of_the_Ring",
-        "The Da Vinci Code": "DaVinciCode",
+        "The Fellowship of the Ring": "TheFellowshipoftheRing",
+        
+        # =========================================
+        # MYSTERY (5 books)
+        # =========================================
+        "The Da Vinci Code": "TheDaVinciCode",
         "Angels & Demons": "Angels&Demons",
-        "Gone Girl": "GG",
-        "Sapiens: A Brief History of Humankind": "Sapiens",
-        "Homo Deus: A Brief History of Tomorrow": "HomoDeus",
+        "Gone Girl": "GoneGirl",
+        "The Girl with the Dragon Tattoo": "TheGirlWithDragonTattoo",
+        "The Silence of the Lambs": "TheSilenceOfTheLambs",
+        
+        # =========================================
+        # ROMANCE (4 books)
+        # =========================================
+        "Pride and Prejudice": "PrideAndPrejudice",
+        "Jane Eyre": "JaneEyre",
+        "Outlander": "Outlander",
+        "The Notebook": "TheNotebook",
+        
+        # =========================================
+        # YOUNG ADULT (4 books)
+        # =========================================
+        "The Hunger Games": "TheHungerGames",
+        "Catching Fire": "CatchingFire",
+        "The Fault in Our Stars": "TheFaultInOurStars",
+        "Divergent": "Divergent",
+        
+        # =========================================
+        # THRILLER (3 books)
+        # =========================================
+        "The Shining": "TheShining",
+        "The Silent Patient": "TheSilentPatient",
+        
+        # =========================================
+        # HISTORY (4 books)
+        # =========================================
+        "Sapiens: A Brief History of Humankind": "SapiensABriefHistoryofHumankind",
+        "Homo Deus: A Brief History of Tomorrow": "HomoDeusABriefHistoryofTomorrow",
+        "The Guns of August": "TheGunsOfAugust",
+        "The Rise and Fall of Ancient Egypt": "RiseAndFallAncientEgypt",
+        
+        # =========================================
+        # BIOGRAPHY (4 books)
+        # =========================================
         "Becoming": "Becoming",
-        "Clean Code: A Handbook of Agile Software Craftsmanship": "CleanCode",
+        "Steve Jobs": "SteveJobs",
+        "The Diary of a Young Girl": "DiaryOfAnneFrank",
+        "Long Walk to Freedom": "LongWalkToFreedom",
+        
+        # =========================================
+        # TECHNICAL (4 books)
+        # =========================================
+        "Clean Code: A Handbook of Agile Software Craftsmanship": "CleanCodeAHandbookofAgileSoftwareCraftsmanship",
+        "The Pragmatic Programmer": "ThePragmaticProgrammer",
+        "Introduction to Algorithms": "IntroductionToAlgorithms",
+        "Design Patterns: Elements of Reusable Object-Oriented Software": "DesignPatterns",
+        
+        # =========================================
+        # COOKBOOK (3 books)
+        # =========================================
+        "The Joy of Cooking": "TheJoyOfCooking",
+        "Mastering the Art of French Cooking": "MasteringFrenchCooking",
+        "Ottolenghi Simple": "OttolenghiSimple",
+        
+        # =========================================
+        # EDUCATION (3 books)
+        # =========================================
+        "Pedagogy of the Oppressed": "PedagogyOfTheOppressed",
+        "Mindset: The New Psychology of Success": "Mindset",
+        "How to Win Friends and Influence People": "HowToWinFriends",
     }
 
     filename = cover_mapping.get(book_title)
@@ -990,7 +1058,8 @@ def show_homepage():
 
     with col2:
         st.write("##### Select a category")
-        categories = ["All", "NonFiction", "Fantasy", "Mystery", "History", "Biography", "Technical"]
+        categories = ["All", "NonFiction", "Fantasy", "Mystery", "Romance", "YoungAdult", 
+                      "Thriller", "History", "Biography", "Technical", "Cookbook", "Education"]
         category = st.selectbox(
             "",
             categories,
@@ -1165,7 +1234,8 @@ def show_search_page():
     # 3. BROWSE BY GENRE
     elif search_type == "Browse by Genre":
         st.subheader("Browse Books by Genre")
-        genres = ["Fantasy", "Mystery", "History", "Biography", "Technical"]
+        genres = ["Fantasy", "Mystery", "Romance", "YoungAdult", "Thriller", 
+                  "History", "Biography", "Technical", "Cookbook", "Education"]
         genre = st.selectbox("Select a genre:", genres)
         
         stats = get_genre_statistics(graph, genre)
@@ -1205,7 +1275,51 @@ def show_search_page():
     # 4. BROWSE BY AUTHOR
     elif search_type == "Browse by Author":
         st.subheader("Browse Books by Author")
-        authors_list = ["J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien", "Dan Brown", "Yuval Noah Harari", "Gillian Flynn", "Michelle Obama", "Robert C. Martin"]
+        authors_list = [
+                            # FANTASY
+                            "J.K. Rowling",
+                            "George R.R. Martin",
+                            "J.R.R. Tolkien",
+                            # MYSTERY
+                            "Dan Brown",
+                            "Stieg Larsson",
+                            "Thomas Harris",
+                            # ROMANCE
+                            "Jane Austen",
+                            "Charlotte Bronte",
+                            "Diana Gabaldon",
+                            "Nicholas Sparks",
+                            # YOUNG ADULT
+                            "Suzanne Collins",
+                            "John Green",
+                            "Veronica Roth",
+                            # THRILLER
+                            "Stephen King",
+                            "Alex Michaelides",
+                            "Gillian Flynn",
+                            # HISTORY
+                            "Yuval Noah Harari",
+                            "Barbara W. Tuchman",
+                            "Toby Wilkinson",
+                            # BIOGRAPHY
+                            "Michelle Obama",
+                            "Walter Isaacson",
+                            "Anne Frank",
+                            "Nelson Mandela",
+                            # TECHNICAL
+                            "Robert C. Martin",
+                            "David Thomas",
+                            "Thomas H. Cormen",
+                            "Erich Gamma",
+                            # COOKBOOK
+                            "Irma S. Rombauer",
+                            "Julia Child",
+                            "Yotam Ottolenghi",
+                            # EDUCATION
+                            "Paulo Freire",
+                            "Carol S. Dweck",
+                            "Dale Carnegie",
+                        ]
         author_name = st.selectbox("Select an author:", authors_list)
         
         if author_name:

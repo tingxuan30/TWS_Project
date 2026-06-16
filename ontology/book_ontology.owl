@@ -19,11 +19,28 @@
 :NonFiction rdf:type owl:Class ;
     rdfs:subClassOf :Book .
 
+# =========================================
+# FICTION GENRES (5 types)
+# =========================================
+
 :Fantasy rdf:type owl:Class ;
     rdfs:subClassOf :Fiction .
 
 :Mystery rdf:type owl:Class ;
     rdfs:subClassOf :Fiction .
+
+:Romance rdf:type owl:Class ;
+    rdfs:subClassOf :Fiction .
+
+:YoungAdult rdf:type owl:Class ;
+    rdfs:subClassOf :Fiction .
+
+:Thriller rdf:type owl:Class ;
+    rdfs:subClassOf :Fiction .
+
+# =========================================
+# NON-FICTION GENRES (5 types)
+# =========================================
 
 :History rdf:type owl:Class ;
     rdfs:subClassOf :NonFiction .
@@ -34,35 +51,61 @@
 :Technical rdf:type owl:Class ;
     rdfs:subClassOf :NonFiction .
 
+:Cookbook rdf:type owl:Class ;
+    rdfs:subClassOf :NonFiction .
+
+:Education rdf:type owl:Class ;
+    rdfs:subClassOf :NonFiction .
+
 # =========================================
-# INFERRED CLASSES
+# INFERRED CLASSES (for each genre)
 # =========================================
 
 :FantasyBook rdf:type owl:Class .
-
 :MysteryBook rdf:type owl:Class .
-
+:RomanceBook rdf:type owl:Class .
+:YoungAdultBook rdf:type owl:Class .
+:ThrillerBook rdf:type owl:Class .
 :HistoryBook rdf:type owl:Class .
-
 :BiographyBook rdf:type owl:Class .
-
 :TechnicalBook rdf:type owl:Class .
+:CookbookBook rdf:type owl:Class .
+:EducationBook rdf:type owl:Class .
 
 # =========================================
 # PROPERTIES
 # =========================================
 
-:hasGenre rdf:type owl:ObjectProperty .
+:hasGenre rdf:type owl:ObjectProperty ;
+    rdfs:domain :Book ;
+    rdfs:range owl:Class .
 
-:title rdf:type owl:DatatypeProperty .
-:author rdf:type owl:DatatypeProperty .
-:price rdf:type owl:DatatypeProperty .
-:isbn rdf:type owl:DatatypeProperty .
+:title rdf:type owl:DatatypeProperty ;
+    rdfs:domain :Book ;
+    rdfs:range xsd:string .
+
+:author rdf:type owl:DatatypeProperty ;
+    rdfs:domain :Book ;
+    rdfs:range xsd:string .
+
+:price rdf:type owl:DatatypeProperty ;
+    rdfs:domain :Book ;
+    rdfs:range xsd:decimal .
+
+:isbn rdf:type owl:DatatypeProperty ;
+    rdfs:domain :Book ;
+    rdfs:range xsd:string .
+
+:rating rdf:type owl:DatatypeProperty ;
+    rdfs:domain :Book ;
+    rdfs:range xsd:decimal ;
+    rdfs:comment "Book rating on a scale of 0 to 5" .
 
 # =========================================
-# REASONING RULES
+# REASONING RULES (OWL 2 RL)
 # =========================================
 
+# Rule: Book with hasGenre :Fantasy → rdf:type :FantasyBook
 :FantasyBook
     owl:equivalentClass [
         rdf:type owl:Class ;
@@ -76,6 +119,7 @@
         )
     ] .
 
+# Rule: Book with hasGenre :Mystery → rdf:type :MysteryBook
 :MysteryBook
     owl:equivalentClass [
         rdf:type owl:Class ;
@@ -89,6 +133,49 @@
         )
     ] .
 
+# Rule: Book with hasGenre :Romance → rdf:type :RomanceBook
+:RomanceBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :Romance
+            ]
+        )
+    ] .
+
+# Rule: Book with hasGenre :YoungAdult → rdf:type :YoungAdultBook
+:YoungAdultBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :YoungAdult
+            ]
+        )
+    ] .
+
+# Rule: Book with hasGenre :Thriller → rdf:type :ThrillerBook
+:ThrillerBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :Thriller
+            ]
+        )
+    ] .
+
+# Rule: Book with hasGenre :History → rdf:type :HistoryBook
 :HistoryBook
     owl:equivalentClass [
         rdf:type owl:Class ;
@@ -102,6 +189,7 @@
         )
     ] .
 
+# Rule: Book with hasGenre :Biography → rdf:type :BiographyBook
 :BiographyBook
     owl:equivalentClass [
         rdf:type owl:Class ;
@@ -115,6 +203,7 @@
         )
     ] .
 
+# Rule: Book with hasGenre :Technical → rdf:type :TechnicalBook
 :TechnicalBook
     owl:equivalentClass [
         rdf:type owl:Class ;
@@ -128,11 +217,39 @@
         )
     ] .
 
-:rating rdf:type owl:DatatypeProperty ;
-        rdfs:domain :Book ;
-        rdfs:range xsd:decimal ;
-        rdfs:comment "Book rating (0-5 scale)" .
+# Rule: Book with hasGenre :Cookbook → rdf:type :CookbookBook
+:CookbookBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :Cookbook
+            ]
+        )
+    ] .
 
+# Rule: Book with hasGenre :Education → rdf:type :EducationBook
+:EducationBook
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            :Book
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty :hasGenre ;
+                owl:hasValue :Education
+            ]
+        )
+    ] .
+
+# =========================================
+# INFERRED CLASS FOR BEST RECOMMENDATIONS
+# =========================================
+
+# Rule: Book with rating >= 4.5 → rdf:type :BestRecommend
 :BestRecommend rdf:type owl:Class ;
     owl:equivalentClass [
         rdf:type owl:Class ;
@@ -141,7 +258,7 @@
             [
                 rdf:type owl:Restriction ;
                 owl:onProperty :rating ;
-                owl:minInclusive "4.5"^^xsd:decimal   # threshold for top rating
+                owl:minInclusive "4.5"^^xsd:decimal
             ]
         )
     ] ;
