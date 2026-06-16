@@ -15,15 +15,59 @@ IMAGE_DIR = os.path.join(BASE_DIR, "image")
 
 # This is the testing synonym dictionary
 SYNONYM_MAP = {
-    "magic": ["Fantasy", "magic", "wizard", "sorcerer", "Harry Potter"],
-    "real life": ["NonFiction", "nonfiction", "biography", "memoir", "true story"],
-    "true story": ["NonFiction", "biography", "memoir"],
-    "future": ["Science Fiction", "sci-fi", "speculative", "dystopian"],
-    "detective": ["Mystery", "crime", "thriller", "suspense"],
-    "coding": ["Technical", "programming", "computer science", "Clean Code"],
-    "software": ["Technical", "programming"],
-    "history": ["NonFiction", "historical", "Sapiens"],
-    "adventure": ["Fantasy", "action", "adventure", "The Hobbit"],
+    "Fantasy": [
+        "fantasy", "magic", "wizard", "sorcerer", "witch", "curse",
+        "elf", "dwarf", "knight", "castle", "enchanted",
+        "mythical", "legend", "fairy", "tale", "adventure"
+    ],
+    
+    "Mystery": [
+        "mystery", "detective", "crime", "thriller", "suspense",
+        "whodunnit", "investigation", "murder", "clue", "puzzle"
+    ],
+    
+    "Romance": [
+        "romance", "love", "couple", "relationship", "heart",
+        "passion", "affair", "wedding", "affection", "soul mate"
+    ],
+    
+    "Young Adult": [
+        "young adult", "adventure", "speculative", "dystopian",
+        "teen", "youngster"
+    ],
+    
+    "Thriller": [
+        "thriller", "suspense", "psychological", "horror", "ghost",
+        "super natural", "scary", "spooky", "monster", "intense"
+    ],
+    
+    "History": [
+        "history", "historical", "ancient", "medieval", "modern",
+        "world war", "civilization", "empire", "archaeology", "documentary"
+    ],
+    
+    "Biography": [
+        "biography", "memoir", "autobiography", "life story",
+        "diary", "journey", "inspirational", "journal", "real life"
+    ],
+    
+    "Technical": [
+        "technical", "coding", "code", "programming", "computer",
+        "software", "algorithm", "developer", "engineering",
+        "clean code", "python", "java", "c++", "data structure", 
+        "machine learning", "ai", "cloud", "artificial intelligence"
+    ],
+    
+    "Cookbook": [
+        "cookbook", "delicacy", "food", "culinary", "recipe",
+        "kitchen", "chef", "cuisine", "baking", "cooking", "gourmet"
+    ],
+    
+    "Education": [
+        "education", "learning", "teaching", "school", "study",
+        "knowledge", "mindset", "psychology", "motivation", 
+        "inspiration", "improvement"
+    ],
 }
 
 # Build reverse synonym lookup (e.g., "wizard" <-> "magic")
@@ -192,155 +236,185 @@ def get_top_rated_recommendations(graph):
     return pd.DataFrame(results)
 
 def search_by_keyword(graph, keyword):
-    """Search books by title, category or genre with synonym expansion.
-    
-    Args:
-        graph: RDF graph (rdflib.Graph) containing book data
-        keyword: Search term entered by user
-        
-    Returns:
-        pandas.DataFrame with columns: Title, Author, Genre, Price (RM)
     """
-    keyword_lower = keyword.lower().strip()
+    Advanced keyword search that handles:
+    1. Genre search with synonym expansion (PRIMARY)
+    2. Category search (Fiction / NonFiction using inferred genre classes)
+    3. Title/Author search (book name) - FALLBACK
+    """
+    keyword_original = keyword.strip()
+    keyword_lower = keyword_original.lower().strip()
     
     # ============================================
-    # STEP 1: Expand search terms using existing SYNONYM_MAP and REVERSE_SYNONYM_MAP
+    # STEP 1: DIRECT GENRE MATCHING
     # ============================================
-    expanded_terms = set([keyword_lower])
+    matched_genres = set()
     
-    # Method 1: Direct mapping (keyword matches primary key)
-    for k, synonyms in SYNONYM_MAP.items():
-        if k in keyword_lower or keyword_lower in k:
-            for syn in synonyms:
-                expanded_terms.add(syn.lower())
-            expanded_terms.add(k.lower())
-    
-    # Method 2: Reverse mapping using your existing REVERSE_SYNONYM_MAP
-    if keyword_lower in REVERSE_SYNONYM_MAP:
-        primary_category = REVERSE_SYNONYM_MAP[keyword_lower]
-        expanded_terms.add(primary_category.lower())
-        if primary_category in SYNONYM_MAP:
-            for syn in SYNONYM_MAP[primary_category]:
-                expanded_terms.add(syn.lower())
-    
-    # Method 3: Add capitalized and title-case versions for genre matching
-    terms_to_add = []
-    for term in expanded_terms:
-        terms_to_add.append(term.capitalize())
-        terms_to_add.append(term.title())
-        # Add without spaces (for multi-word genres)
-        if ' ' in term:
-            terms_to_add.append(term.replace(' ', ''))
-    
-    for term in terms_to_add:
-        expanded_terms.add(term.lower())
-    
-    # Remove empty strings and very short terms (length < 2)
-    expanded_terms = [t for t in expanded_terms if t and len(t) >= 2]
-    
-    # If no terms expanded, fall back to simple search
-    if not expanded_terms:
-        return simple_keyword_search(graph, keyword)
+    for genre_name in SYNONYM_MAP.keys():
+        genre_lower = genre_name.lower()
+        # Check exact match with genre name
+        if keyword_lower == genre_lower:
+            matched_genres.add(genre_name)
+            continue
+        
+        # Check if keyword is a synonym
+        for syn in SYNONYM_MAP[genre_name]:
+            syn_lower = syn.lower()
+            if keyword_lower == syn_lower:
+                matched_genres.add(genre_name)
+                break
+            
+        # Check partial matches (for multi-word like "young adult")
+        if ' ' in keyword_lower:
+            for syn in SYNONYM_MAP[genre_name]:
+                syn_lower = syn.lower()
+                if keyword_lower in syn_lower or syn_lower in keyword_lower:
+                    matched_genres.add(genre_name)
+                    break
     
     # ============================================
-    # STEP 2: Build genre candidates from expanded terms
+    # STEP 2: If genre matched, search by genre
     # ============================================
-    genre_candidates = set()
-    for term in expanded_terms:
-        # Clean term for genre matching
-        clean = term.replace(" ", "").replace("-", "").replace("_", "")
-        if clean.isalpha() and len(clean) > 2:
-            genre_candidates.add(clean.capitalize())
-            genre_candidates.add(clean)
-    
-    # Add explicit genre mappings from synonym map primary keys
-    for primary_key in SYNONYM_MAP.keys():
-        primary_lower = primary_key.lower()
-        if any(primary_lower in term or term in primary_lower for term in expanded_terms):
-            genre_candidates.add(primary_key)
-    
-    # ============================================
-    # STEP 3: Build SPARQL query with proper syntax
-    # ============================================
-    # Build title/author filter conditions
-    title_author_conditions = []
-    for term in expanded_terms[:15]:  # Limit to 15 terms for performance
-        term_clean = term.lower().replace("'", "\\'").replace('"', '\\"')
-        title_author_conditions.append(f'CONTAINS(LCASE(?title), "{term_clean}")')
-        title_author_conditions.append(f'CONTAINS(LCASE(?author), "{term_clean}")')
-    
-    # Remove duplicates
-    title_author_conditions = list(set(title_author_conditions))
-    
-    # Build genre filter conditions
-    genre_conditions = []
-    for genre in genre_candidates:
-        genre_conditions.append(f'?type = <http://www.example.org/bookstore#{genre}>')
-    
-    # Build the WHERE clause parts (only include non-empty filters)
-    where_parts = []
-    
-    if title_author_conditions:
-        title_author_filter = " || ".join(title_author_conditions)
-        where_parts.append(f"{{ FILTER({title_author_filter}) }}")
-    
-    if genre_conditions:
+    if matched_genres:
+        genre_conditions = []
+        for genre in matched_genres:
+            genre_clean = genre.replace(" ", "")
+            genre_conditions.append(f'?type = <http://www.example.org/bookstore#{genre_clean}>')
+        
         genre_filter = " || ".join(genre_conditions)
-        where_parts.append(f"{{ FILTER({genre_filter}) }}")
-    
-    # If no filters, fall back to simple search
-    if not where_parts:
-        return simple_keyword_search(graph, keyword)
-    
-    # Build the complete query with UNION
-    if len(where_parts) == 1:
-        where_clause = where_parts[0]
-    else:
-        where_clause = "{ " + " UNION ".join(where_parts) + " }"
-    
-    query = f"""
-    PREFIX : <http://www.example.org/bookstore#>
-    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    
-    SELECT DISTINCT ?title ?author ?price ?type WHERE {{
-        ?book rdf:type :Book ;
-              :title ?title ;
-              :author ?author ;
-              :price ?price .
-        ?book :hasGenre ?type .
-        FILTER(?type != :Book && ?type != :Bestseller)
-        {where_clause}
-    }}
-    """
+        query = f"""
+        PREFIX : <http://www.example.org/bookstore#>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        
+        SELECT DISTINCT ?title ?author ?price ?type WHERE {{
+            ?book rdf:type :Book ;
+                  :title ?title ;
+                  :author ?author ;
+                  :price ?price .
+            ?book :hasGenre ?type .
+            FILTER({genre_filter})
+        }}
+        """
+        
+        results = []
+        try:
+            for row in graph.query(query):
+                genre_uri = str(row.type)
+                genre = genre_uri.split("#")[-1] if "#" in genre_uri else "Unknown"
+                results.append({
+                    "Title": str(row.title),
+                    "Author": str(row.author),
+                    "Genre": genre,
+                    "Price (RM)": float(row.price)
+                })
+            
+            seen = set()
+            unique_results = []
+            for r in results:
+                if r["Title"] not in seen:
+                    seen.add(r["Title"])
+                    unique_results.append(r)
+            
+            if unique_results:
+                st.success(f"🔍 Found {len(unique_results)} books in genre: {', '.join(matched_genres)}")
+            return pd.DataFrame(unique_results)
+            
+        except Exception as e:
+            st.error(f"Genre search error: {e}")
+            return simple_keyword_search(graph, keyword_original)
     
     # ============================================
-    # STEP 4: Execute query and process results
+    # STEP 3: Category Search (Fiction / NonFiction)
     # ============================================
-    results = []
-    try:
-        for row in graph.query(query):
-            genre_uri = str(row.type)
-            genre = genre_uri.split("#")[-1] if "#" in genre_uri else "Unknown"
-            results.append({
-                "Title": str(row.title),
-                "Author": str(row.author),
-                "Genre": genre,
-                "Price (RM)": float(row.price)
-            })
+    # List of genres that belong to each category
+    FICTION_GENRES = ["Fantasy", "Mystery", "Romance", "YoungAdult", "Thriller"]
+    NONFICTION_GENRES = ["History", "Biography", "Technical", "Cookbook", "Education"]
+    
+    # FIXED: Check for NonFiction FIRST and use exact matching
+    detected_category = None
+    
+    # First, check for NonFiction (exact matches only)
+    nonfiction_terms = ["nonfiction", "non-fiction", "non fiction", "nonfictional"]
+    for term in nonfiction_terms:
+        if term in keyword_lower or keyword_lower in term:
+            detected_category = "NonFiction"
+            break
+    
+    # If not NonFiction, check for Fiction
+    if not detected_category:
+        fiction_terms = ["fiction", "fictional", "novel", "story", "tale"]
+        for term in fiction_terms:
+            if term == keyword_lower or keyword_lower == term:
+                detected_category = "Fiction"
+                break
+    
+    # If still not detected, check for category keywords with word boundaries
+    if not detected_category:
+        # Check if the keyword is a single word that matches a category
+        if keyword_lower == "fiction":
+            detected_category = "Fiction"
+        elif keyword_lower in ["nonfiction", "non-fiction", "non fiction"]:
+            detected_category = "NonFiction"
+    
+    if detected_category:
+        # Get the list of genres for this category
+        if detected_category == "Fiction":
+            category_genres = FICTION_GENRES
+        else:
+            category_genres = NONFICTION_GENRES
         
-        # Remove duplicates by title
-        seen = set()
-        unique_results = []
-        for r in results:
-            if r["Title"] not in seen:
-                seen.add(r["Title"])
-                unique_results.append(r)
+        # Build genre conditions for all genres in this category
+        genre_conditions = []
+        for genre in category_genres:
+            genre_clean = genre.replace(" ", "")
+            genre_conditions.append(f'?type = <http://www.example.org/bookstore#{genre_clean}>')
         
-        return pd.DataFrame(unique_results)
+        genre_filter = " || ".join(genre_conditions)
         
-    except Exception as e:
-        st.error(f"Synonym search error: {e}. Falling back to simple keyword search.")
-        return simple_keyword_search(graph, keyword)
+        query = f"""
+        PREFIX : <http://www.example.org/bookstore#>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        
+        SELECT DISTINCT ?title ?author ?price ?type WHERE {{
+            ?book rdf:type :Book ;
+                  :title ?title ;
+                  :author ?author ;
+                  :price ?price .
+            ?book :hasGenre ?type .
+            FILTER({genre_filter})
+        }}
+        """
+        
+        results = []
+        try:
+            for row in graph.query(query):
+                genre_uri = str(row.type)
+                genre = genre_uri.split("#")[-1] if "#" in genre_uri else "Unknown"
+                results.append({
+                    "Title": str(row.title),
+                    "Author": str(row.author),
+                    "Genre": genre,
+                    "Price (RM)": float(row.price)
+                })
+            
+            seen = set()
+            unique_results = []
+            for r in results:
+                if r["Title"] not in seen:
+                    seen.add(r["Title"])
+                    unique_results.append(r)
+            
+            st.success(f"📚 Found {len(unique_results)} books in category: {detected_category}")
+            return pd.DataFrame(unique_results)
+            
+        except Exception as e:
+            st.error(f"Category search error: {e}")
+            return simple_keyword_search(graph, keyword_original)
+    
+    # ============================================
+    # STEP 4: Fallback - Title/Author Search
+    # ============================================
+    return simple_keyword_search(graph, keyword_original)
 
 def simple_keyword_search(graph, keyword):
     """Fallback: original keyword search (title/author only)."""
