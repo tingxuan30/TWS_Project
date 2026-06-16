@@ -192,7 +192,7 @@ def get_top_rated_recommendations(graph):
     return pd.DataFrame(results)
 
 def search_by_keyword(graph, keyword):
-    """Search books by title, author, or genre with synonym expansion.
+    """Search books by title, category or genre with synonym expansion.
     
     Args:
         graph: RDF graph (rdflib.Graph) containing book data
@@ -1174,7 +1174,7 @@ def show_search_page():
     
     # 1. KEYWORD SEARCH
     if search_type == "Keyword Search":
-        st.subheader("Search Books by Title, Author, or Genre")
+        st.subheader("Search Books by Title, Category or Genre")
         keyword = st.text_input("Enter book title, author name, or genre:", "Harry Potter")
         if keyword:
             df = search_by_keyword(graph, keyword)
