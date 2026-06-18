@@ -336,7 +336,7 @@ def search_by_keyword(graph, keyword):
     # First, check for NonFiction (exact matches only)
     nonfiction_terms = ["nonfiction", "non-fiction", "non fiction", "nonfictional"]
     for term in nonfiction_terms:
-        if term in keyword_lower or keyword_lower in term:
+        if keyword_lower == term or term in keyword_lower:
             detected_category = "NonFiction"
             break
     
@@ -344,7 +344,7 @@ def search_by_keyword(graph, keyword):
     if not detected_category:
         fiction_terms = ["fiction", "fictional", "novel", "story", "tale"]
         for term in fiction_terms:
-            if term == keyword_lower or keyword_lower == term:
+            if keyword_lower == term:
                 detected_category = "Fiction"
                 break
     
@@ -356,6 +356,7 @@ def search_by_keyword(graph, keyword):
         elif keyword_lower in ["nonfiction", "non-fiction", "non fiction"]:
             detected_category = "NonFiction"
     
+    # IMPORTANT: Only proceed if a category was detected
     if detected_category:
         # Get the list of genres for this category
         if detected_category == "Fiction":
@@ -404,7 +405,10 @@ def search_by_keyword(graph, keyword):
                     seen.add(r["Title"])
                     unique_results.append(r)
             
-            st.success(f"📚 Found {len(unique_results)} books in category: {detected_category}")
+            if unique_results:
+                st.success(f"📚 Found {len(unique_results)} books in category: {detected_category}")
+            else:
+                st.info(f"No books found in category: {detected_category}")
             return pd.DataFrame(unique_results)
             
         except Exception as e:
