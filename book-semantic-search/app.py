@@ -1277,27 +1277,48 @@ def show_homepage():
     
     # Featured Books Section
     st.markdown("---")
-    st.subheader("Best Recommend Books")
+    st.subheader("Best Recommend Books ⭐")
 
     best_recommend = get_top_rated_recommendations(graph)
 
     if not best_recommend.empty:
+        st.info(f"📚 Found {len(best_recommend)} books with rating ≥ 4.5")
+        
+        # Default show first 8 books, expand with "Show All" checkbox
+        show_count = 4  # Default show 4 books
+        show_all = st.checkbox("Show All Books", value=False)
+        
+        if show_all:
+            display_books = best_recommend
+        else:
+            display_books = best_recommend.head(show_count)
+            if len(best_recommend) > show_count:
+                st.caption(f"Showing first {show_count} books. Check the box above to view all {len(best_recommend)} books.")
+        
+        # Display books
         cols = st.columns(4)
-        for idx, (_, book) in enumerate(best_recommend.head(4).iterrows()):
-            with cols[idx]:
+        for idx, (_, book) in enumerate(display_books.iterrows()):
+            with cols[idx % 4]:
                 cover_path = get_book_cover(book['Title'])
                 with st.container():
-                    if cover_path:
+                    if cover_path and os.path.exists(cover_path):
                         st.image(cover_path, width=140)
                     else:
                         st.write("📚")
                     st.markdown(f"""
                     **{book['Title']}**  
                     *{book['Author']}*  
-                    RM {book['Price (RM)']}
+                    RM {book['Price (RM)']:.2f}
                     """)
+        
+        # Expandable table view
+        with st.expander("📋 View All Recommended Books (Table View)"):
+            display_df = best_recommend[['Title', 'Author', 'Price (RM)']].copy()
+            display_df.index = range(1, len(display_df) + 1)
+            display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
+            st.dataframe(display_df, use_container_width=True, height=400)
     else:
-        st.info("No bestsellers found.")
+        st.info("No books with rating ≥ 4.5 found.")
     
     # Quick Stats
     st.markdown("---")
