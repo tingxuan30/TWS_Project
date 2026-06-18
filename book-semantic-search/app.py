@@ -841,36 +841,63 @@ def simple_keyword_recommendation(description, category, graph):
     return recommendations
 
 def extract_genres_from_description(description):
+    """
+    Extract ALL genres from the description by checking each word against the synonym map.
+    """
     desc_lower = description.lower()
-
     target_genres = set()
 
-    # check each word that the user has input
+    # Method 1: Check each word in the description
     words = desc_lower.split()
 
     for word in words:
-
-        # wizard -> magic
+        # Check if this word is in the reverse synonym map
         if word in REVERSE_SYNONYM_MAP:
-
             primary = REVERSE_SYNONYM_MAP[word]
+            
+            # Map the primary key to the actual genre name
+            genre_mapping = {
+                "Fantasy": "Fantasy",
+                "Mystery": "Mystery", 
+                "Romance": "Romance",
+                "Young Adult": "YoungAdult",
+                "Thriller": "Thriller",
+                "History": "History",
+                "Biography": "Biography",
+                "Technical": "Technical",
+                "Cookbook": "Cookbook",
+                "Education": "Education"
+            }
+            
+            if primary in genre_mapping:
+                target_genres.add(genre_mapping[primary])
 
-            # magic -> Fantasy
-            if primary == "magic":
-                target_genres.add("Fantasy")
-
-            elif primary == "detective":
-                target_genres.add("Mystery")
-
-            elif primary == "coding":
-                target_genres.add("Technical")
-
-            elif primary == "history":
-                target_genres.add("History")
-
-            elif primary == "real life":
-                target_genres.add("NonFiction")
-
+    # Method 2: Check multi-word phrases
+    multi_word_phrases = {
+        "young adult": "YoungAdult",
+        "world war": "History",
+        "life story": "Biography",
+        "soul mate": "Romance",
+        "clean code": "Technical",
+        "machine learning": "Technical",
+        "data structure": "Technical"
+    }
+    
+    for phrase, genre in multi_word_phrases.items():
+        if phrase in desc_lower:
+            target_genres.add(genre)
+    
+    # Method 3: Directly examine all the genre keywords in the entire description
+    for genre_name, synonyms in SYNONYM_MAP.items():
+        for syn in synonyms:
+            if syn.lower() in desc_lower:
+                # Standardize the genre names
+                if genre_name == "Young Adult":
+                    target_genres.add("YoungAdult")
+                else:
+                    target_genres.add(genre_name)
+                break  # Once a synonym is found, exit the inner loop
+    
     return target_genres
 
 def get_recommendations_by_description(description, category, graph):
@@ -883,23 +910,26 @@ def get_recommendations_by_description(description, category, graph):
 
     desc_lower = description.lower()
 
-    # Extract target genres from the description 
-    target_genres = set()
-    # map each genre to its list of keywords
+    # Extract target genres from the description
     target_genres = extract_genres_from_description(description)
-
+    
     # If user explicitly selected a category, add it
     if category != "All":
         target_genres.add(category)
 
-    # Extract meaningful keywords (skip stop words) 
+    # If no genres detected, use fallback
+    if not target_genres:
+        st.info("No specific genres detected. Showing general recommendations.")
+        return simple_keyword_recommendation(description, category, graph)
+
+    # Extract meaningful keywords (skip stop words)
     stopwords = {"a", "an", "the", "and", "of", "to", "for", "with", "on", "at", "by",
-                 "is", "are", "was", "were", "i", "want", "about", "book", "books"}
+                 "is", "are", "was", "were", "i", "want", "about", "book", "books",
+                 "like", "read", "reading", "story", "tale", "love", "enjoy", "looking"}
     words = desc_lower.split()
     keywords = {w for w in words if w not in stopwords and len(w) > 2}
 
-    # SPARQL query to get all books with their inferred genres 
-    # We query both direct :hasGenre and the inferred rdf:type (e.g., :FantasyBook)
+    # SPARQL query to get all books with their inferred genres
     query = """
     PREFIX : <http://www.example.org/bookstore#>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -912,6 +942,7 @@ def get_recommendations_by_description(description, category, graph):
         OPTIONAL { ?book rdf:type ?type . FILTER(?type != :Book && ?type != :Bestseller) }
     }
     """
+    
     try:
         results = []
         for row in graph.query(query):
@@ -932,7 +963,7 @@ def get_recommendations_by_description(description, category, graph):
             # Only keep books that have a recognizable genre
             if inferred_genre and inferred_genre in {
                     "Fantasy", "Mystery", "Romance", "YoungAdult", "Thriller",
-                    "History", "Biography", "Technical", "Cookbook", "Education", "NonFiction"
+                    "History", "Biography", "Technical", "Cookbook", "Education"
                 }:
                 results.append({
                     "Title": str(row.title),
@@ -941,6 +972,7 @@ def get_recommendations_by_description(description, category, graph):
                     "Genre": inferred_genre
                 })
 
+        # Remove duplicates
         seen = set()
         unique_results = []
         for book in results:
@@ -952,31 +984,70 @@ def get_recommendations_by_description(description, category, graph):
         if not results:
             return pd.DataFrame()
 
-        # score each book 
+        # Score each book
         scored_books = []
         for book in results:
             score = 0
             book_text = f"{book['Title']} {book['Author']}".lower()
 
-            # Genre match 
+            # Genre match - give points for EACH matching genre
             if book['Genre'] in target_genres:
                 score += 30
+                
+                # Bonus: If multiple genres match, give extra points
+                matching_genres = len(target_genres.intersection({book['Genre']}))
+                if matching_genres > 0:
+                    score += 10 * matching_genres
 
             # Keyword match in title/author
             for kw in keywords:
                 if kw in book_text:
                     score += 5
 
-            # Category override
+            # Category override bonus
             if category != "All" and category == book['Genre']:
                 score += 20
+
+            # Additional bonus for books that match the most requested genres
+            if len(target_genres) > 1 and book['Genre'] in target_genres:
+                score += 15
 
             if score > 0:
                 scored_books.append((score, book))
 
         # Sort by score descending
         scored_books.sort(key=lambda x: x[0], reverse=True)
-        recommendations = [book for _, book in scored_books[:15]]
+        
+        # If multiple genres requested, ensure each genre has representation
+        if len(target_genres) > 1:
+            # Group by genre
+            genre_groups = {}
+            for score, book in scored_books:
+                if book['Genre'] not in genre_groups:
+                    genre_groups[book['Genre']] = []
+                genre_groups[book['Genre']].append((score, book))
+            
+            # Take books from each genre
+            final_books = []
+            books_per_genre = max(2, 15 // len(target_genres))
+            
+            for genre in sorted(target_genres):
+                if genre in genre_groups:
+                    take_count = min(books_per_genre, len(genre_groups[genre]))
+                    final_books.extend(genre_groups[genre][:take_count])
+            
+            # Fill remaining slots
+            if len(final_books) < 15:
+                remaining = []
+                for genre, books in genre_groups.items():
+                    remaining.extend([item for item in books if item not in final_books])
+                final_books.extend(remaining[:15 - len(final_books)])
+            
+            # Sort by score
+            final_books.sort(key=lambda x: x[0], reverse=True)
+            recommendations = [book for _, book in final_books[:15]]
+        else:
+            recommendations = [book for _, book in scored_books[:15]]
 
         if recommendations:
             df = pd.DataFrame(recommendations)
@@ -1256,7 +1327,7 @@ def show_homepage():
         st.metric("Top Rated", top_rated_count)
 
 # ---------------------------
-# 5. SEARCH PAGE UI
+# 5. SEARCH CONTENT UI
 # ---------------------------
 def show_search_content(graph):
     """Display search content without sidebar navigation"""
