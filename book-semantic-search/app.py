@@ -1227,29 +1227,21 @@ def show_homepage():
 # ---------------------------
 # 5. SEARCH PAGE UI
 # ---------------------------
-def show_search_page():
-    """Display the advanced search page"""
+def show_search_content(graph):
+    """Display search content without sidebar navigation"""
     
-    st.title("Advanced Book Search")
-    st.markdown("Use the sidebar to search for books by keyword, price, genre or author!")
+    # Create tabs for different search methods
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🔍 Keyword Search", 
+        "💰 Price Range", 
+        "📚 Browse by Genre", 
+        "👤 Browse by Author", 
+        "🔗 Similar Books"
+    ])
     
-    # Use reasoning
-    graph = get_active_graph() 
-    if graph is None:
-        with st.spinner("Loading book catalog..."):
-            graph = load_data()
-    
-    # Sidebar navigation
-    st.sidebar.header("Search Options")
-    search_type = st.sidebar.radio(
-        "Choose search method:",
-        ["Keyword Search", "Price Range", "Browse by Genre", "Browse by Author", "Similar Books"]
-    )
-    
-    # 1. KEYWORD SEARCH
-    if search_type == "Keyword Search":
+    with tab1:
         st.subheader("Search Books by Title, Category or Genre")
-        keyword = st.text_input("Enter book title, author name, or genre:", "Harry Potter")
+        keyword = st.text_input("Enter book title, author name, or genre:", "Harry Potter", key="keyword_search")
         if keyword:
             df = search_by_keyword(graph, keyword)
             if not df.empty:
@@ -1270,16 +1262,15 @@ def show_search_page():
             else:
                 st.warning("No books found. Try a different keyword.")
     
-    # 2. PRICE FILTER
-    elif search_type == "Price Range":
+    with tab2:
         st.subheader("Filter Books by Price")
         col1, col2 = st.columns(2)
         with col1:
-            min_price = st.number_input("Min Price (RM)", min_value=0, value=0, step=5)
+            min_price = st.number_input("Min Price (RM)", min_value=0, value=0, step=5, key="min_price")
         with col2:
-            max_price = st.number_input("Max Price (RM)", min_value=0, value=100, step=5)
+            max_price = st.number_input("Max Price (RM)", min_value=0, value=100, step=5, key="max_price")
         
-        if st.button("Search", type="primary"):
+        if st.button("Search", type="primary", key="price_search"):
             df = filter_by_price(graph, min_price, max_price)
             if not df.empty:
                 for _, book in df.iterrows():
@@ -1305,12 +1296,11 @@ def show_search_page():
             else:
                 st.warning("No books found in this price range.")
     
-    # 3. BROWSE BY GENRE
-    elif search_type == "Browse by Genre":
+    with tab3:
         st.subheader("Browse Books by Genre")
         genres = ["Fantasy", "Mystery", "Romance", "YoungAdult", "Thriller", 
                   "History", "Biography", "Technical", "Cookbook", "Education"]
-        genre = st.selectbox("Select a genre:", genres)
+        genre = st.selectbox("Select a genre:", genres, key="genre_select")
         
         stats = get_genre_statistics(graph, genre)
         
@@ -1345,56 +1335,22 @@ def show_search_page():
             
         else:
             st.warning(f"No books found in {genre}")
-
-    # 4. BROWSE BY AUTHOR
-    elif search_type == "Browse by Author":
+    
+    with tab4:
         st.subheader("Browse Books by Author")
         authors_list = [
-                            # FANTASY
-                            "J.K. Rowling",
-                            "George R.R. Martin",
-                            "J.R.R. Tolkien",
-                            # MYSTERY
-                            "Dan Brown",
-                            "Stieg Larsson",
-                            "Thomas Harris",
-                            # ROMANCE
-                            "Jane Austen",
-                            "Charlotte Bronte",
-                            "Diana Gabaldon",
-                            "Nicholas Sparks",
-                            # YOUNG ADULT
-                            "Suzanne Collins",
-                            "John Green",
-                            "Veronica Roth",
-                            # THRILLER
-                            "Stephen King",
-                            "Alex Michaelides",
-                            "Gillian Flynn",
-                            # HISTORY
-                            "Yuval Noah Harari",
-                            "Barbara W. Tuchman",
-                            "Toby Wilkinson",
-                            # BIOGRAPHY
-                            "Michelle Obama",
-                            "Walter Isaacson",
-                            "Anne Frank",
-                            "Nelson Mandela",
-                            # TECHNICAL
-                            "Robert C. Martin",
-                            "David Thomas",
-                            "Thomas H. Cormen",
-                            "Erich Gamma",
-                            # COOKBOOK
-                            "Irma S. Rombauer",
-                            "Julia Child",
-                            "Yotam Ottolenghi",
-                            # EDUCATION
-                            "Paulo Freire",
-                            "Carol S. Dweck",
-                            "Dale Carnegie",
-                        ]
-        author_name = st.selectbox("Select an author:", authors_list)
+            "J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien",
+            "Dan Brown", "Stieg Larsson", "Thomas Harris",
+            "Jane Austen", "Charlotte Bronte", "Diana Gabaldon", "Nicholas Sparks",
+            "Suzanne Collins", "John Green", "Veronica Roth",
+            "Stephen King", "Alex Michaelides", "Gillian Flynn",
+            "Yuval Noah Harari", "Barbara W. Tuchman", "Toby Wilkinson",
+            "Michelle Obama", "Walter Isaacson", "Anne Frank", "Nelson Mandela",
+            "Robert C. Martin", "David Thomas", "Thomas H. Cormen", "Erich Gamma",
+            "Irma S. Rombauer", "Julia Child", "Yotam Ottolenghi",
+            "Paulo Freire", "Carol S. Dweck", "Dale Carnegie",
+        ]
+        author_name = st.selectbox("Select an author:", authors_list, key="author_select")
         
         if author_name:
             author_stats = get_author_statistics(graph, author_name)
@@ -1441,58 +1397,63 @@ def show_search_page():
                         authors_list
                     )
                     
-                if similar_authors:
-                    for sim_author in similar_authors:
-                        with st.expander(f"**{sim_author['name']}** | **Genre:** {', '.join(sorted(sim_author['shared_genres']))}"):
-                            
-                            sim_author_stats = get_author_statistics(graph, sim_author['name'])
-                            sim_df = sim_author_stats["df"]
-                            
-                            st.markdown("**Featured Books**")
-                            
-                            for _, book in sim_df.head(3).iterrows():
-                                col1, col2 = st.columns([1, 3])
-                                with col1:
-                                    cover_path = get_book_cover(book['Title'])
-                                    st.image(cover_path, width=100)
+                    if similar_authors:
+                        for sim_author in similar_authors:
+                            with st.expander(f"**{sim_author['name']}** | **Genre:** {', '.join(sorted(sim_author['shared_genres']))}"):
                                 
-                                with col2:
-                                    st.markdown(f"**{book['Title']}**")
-                                    st.markdown(f"*{book['Genre']}*")
-                                    st.markdown(f"RM {book['Price (RM)']:.2f}")
-                                    if book['Best Recommend'] == "✅":
-                                        st.markdown("⭐ Best Recommend")
-                                st.markdown("---")
-                            
-                            if len(sim_df) > 3:
-                                with st.expander(f"View all {len(sim_df)} books"):
-                                    for _, book in sim_df.iterrows():
-                                        col1, col2 = st.columns([1, 3])
-                                        with col1:
-                                            cover_path = get_book_cover(book['Title'])
+                                sim_author_stats = get_author_statistics(graph, sim_author['name'])
+                                sim_df = sim_author_stats["df"]
+                                
+                                st.markdown("**Featured Books**")
+                                
+                                for _, book in sim_df.head(3).iterrows():
+                                    col1, col2 = st.columns([1, 3])
+                                    with col1:
+                                        cover_path = get_book_cover(book['Title'])
+                                        if cover_path:
                                             st.image(cover_path, width=100)
-                                            st.markdown("---")
-                                        
-                                        with col2:
-                                            st.markdown(f"**{book['Title']}**")
-                                            st.markdown(f"*{book['Genre']}*")
-                                            st.markdown(f"RM {book['Price (RM)']:.2f}")
+                                        else:
+                                            st.write("📚")
+                                    
+                                    with col2:
+                                        st.markdown(f"**{book['Title']}**")
+                                        st.markdown(f"*{book['Genre']}*")
+                                        st.markdown(f"RM {book['Price (RM)']:.2f}")
+                                        if book['Best Recommend'] == "✅":
                                             st.markdown("⭐ Best Recommend")
+                                    st.markdown("---")
+                                
+                                if len(sim_df) > 3:
+                                    with st.expander(f"View all {len(sim_df)} books"):
+                                        for _, book in sim_df.iterrows():
+                                            col1, col2 = st.columns([1, 3])
+                                            with col1:
+                                                cover_path = get_book_cover(book['Title'])
+                                                if cover_path:
+                                                    st.image(cover_path, width=100)
+                                                else:
+                                                    st.write("📚")
+                                            
+                                            with col2:
+                                                st.markdown(f"**{book['Title']}**")
+                                                st.markdown(f"*{book['Genre']}*")
+                                                st.markdown(f"RM {book['Price (RM)']:.2f}")
+                                                if book['Best Recommend'] == "✅":
+                                                    st.markdown("⭐ Best Recommend")
                                             st.markdown("---")
-                else:
-                    st.info("No similar authors found based on shared genres.")
+                    else:
+                        st.info("No similar authors found based on shared genres.")
             else:
                 st.warning(f"No books found by {author_name}")
-
-    # 5. SIMILAR BOOKS
-    elif search_type == "Similar Books":
+    
+    with tab5:
         st.subheader("Find Similar Books")
         st.caption("Based on same author and genre (powered by OWL reasoning)")
         
         all_books = get_all_books(graph)
         if not all_books.empty:
             book_titles = all_books['Title'].tolist()
-            book_title = st.selectbox("Select a book you like:", book_titles)
+            book_title = st.selectbox("Select a book you like:", book_titles, key="similar_book_select")
             
             if book_title:
                 df = get_similar_books(graph, book_title)
@@ -1707,14 +1668,14 @@ def main():
             st.rerun()
         return
     
-    # Display reasoning status
+   # Display reasoning status
     if st.session_state.get("reasoning_enabled", False):
         st.sidebar.success("🔮 OWL Reasoning: Enabled")
         st.sidebar.info("All searches use reasoning-enhanced semantic relationships")
     else:
         st.sidebar.warning("⚠️ OWL Reasoning: Disabled (basic mode)")
     
-    # Custom CSS for better styling
+    # Custom CSS
     st.markdown("""
     <style>
     .stButton > button {
@@ -1730,19 +1691,16 @@ def main():
     </style>
     """, unsafe_allow_html=True)
     
-    # Sidebar navigation between Homepage and Search
-    st.sidebar.image("https://img.icons8.com/fluency/96/book.png", width=80)
-    st.sidebar.title("Navigation")
+    # Show Homepage content
+    show_homepage()
     
-    page = st.sidebar.radio(
-        "Go to:",
-        ["Homepage", "Advanced Search"]
-    )
+    # Add a divider
+    st.markdown("---")
+    st.markdown("## 🔍 Advanced Search")
+    st.markdown("Use the tools below to search for books by keyword, price, genre or author!")
     
-    if page == "Homepage":
-        show_homepage()
-    else:
-        show_search_page()
+    # Show Search content (modified to work without sidebar)
+    show_search_content(graph)  # You'll need to create this function
     
     # Footer
     st.markdown("---")
