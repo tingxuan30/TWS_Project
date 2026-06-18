@@ -417,29 +417,56 @@ def search_by_keyword(graph, keyword):
     return simple_keyword_search(graph, keyword_original)
 
 def simple_keyword_search(graph, keyword):
-    """Fallback: original keyword search (title/author only)."""
+    """Fallback: keyword search (title/author) with genre lookup."""
+    keyword_clean = keyword.strip().replace("'", "\\'").replace('"', '\\"')
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
     SELECT ?title ?author ?price WHERE {{
         ?book :title ?title ;
               :author ?author ;
               :price ?price .
-        FILTER(CONTAINS(LCASE(?title), LCASE("{keyword}")) || 
-               CONTAINS(LCASE(?author), LCASE("{keyword}")))
+        FILTER(CONTAINS(LCASE(?title), LCASE("{keyword_clean}")) || 
+               CONTAINS(LCASE(?author), LCASE("{keyword_clean}")))
     }}
     """
     results = []
     try:
         for row in graph.query(query):
+            # Look up the genre for this book
+            genre_query = f"""
+            PREFIX : <http://www.example.org/bookstore#>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            
+            SELECT ?type WHERE {{
+                ?book :title "{str(row.title)}" .
+                ?book :hasGenre ?type .
+                FILTER(?type != :Book && ?type != :Bestseller && ?type != :BestRecommend)
+            }}
+            LIMIT 1
+            """
+            
+            genre = "Unknown"
+            try:
+                genre_results = list(graph.query(genre_query))
+                if genre_results:
+                    genre_uri = str(genre_results[0][0])
+                    genre = genre_uri.split("#")[-1] if "#" in genre_uri else "Unknown"
+            except:
+                pass
+            
             results.append({
                 "Title": str(row.title),
                 "Author": str(row.author),
-                "Genre": "Unknown",
+                "Genre": genre,
                 "Price (RM)": float(row.price)
             })
+        
+        if not results:
+            st.info("No books found matching your search.")
         return pd.DataFrame(results)
+        
     except Exception as e:
-        st.error(f"Fallback search also failed: {e}")
+        st.error(f"Fallback search failed: {e}")
         return pd.DataFrame(columns=["Title", "Author", "Genre", "Price (RM)"])
 
 def filter_by_price(graph, min_price, max_price):
@@ -1240,7 +1267,7 @@ def show_search_content(graph):
     ])
     
     with tab1:
-        st.subheader("Search Books by Title, Category or Genre")
+        st.subheader("Search Books by Title, Author, Category or Genre")
         keyword = st.text_input("Enter book title, author name, or genre:", "Harry Potter", key="keyword_search")
         if keyword:
             df = search_by_keyword(graph, keyword)
