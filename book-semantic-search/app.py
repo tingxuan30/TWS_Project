@@ -1945,7 +1945,7 @@ def show_homepage():
         st.markdown(f"""
         <div class="stat-card">
             <span class="stat-number"><span class="accent">{top_rated_count}</span></span>
-            <span class="stat-label">Top Rated</span>
+            <span class="stat-label">Best Recommend</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2048,7 +2048,7 @@ def show_search_content(graph):
             with col2:
                 st.metric("Authors", len(stats["authors"]))
             with col3:
-                st.metric("Top Rated", stats["bestrecommend_count"])
+                st.metric("Best Recommend", stats["bestrecommend_count"])
             
             st.markdown("---")
             
@@ -2099,7 +2099,7 @@ def show_search_content(graph):
                 with col1:
                     st.metric("Total Books", author_stats["total_books"])
                 with col2:
-                    st.metric("Top Rated", author_stats["bestrecommend_count"])
+                    st.metric("Best Recommend", author_stats["bestrecommend_count"])
                 with col3:
                     st.metric("Genres", ", ".join(author_stats["genres"]) if author_stats["genres"] else "Unknown")
                 
