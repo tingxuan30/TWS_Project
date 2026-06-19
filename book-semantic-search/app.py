@@ -13,7 +13,549 @@ DATA_PATH = os.path.join(ROOT_DIR, "data", "books.ttl")
 ONTOLOGY_PATH = os.path.join(ROOT_DIR, "ontology", "book_ontology.owl")
 IMAGE_DIR = os.path.join(BASE_DIR, "image")
 
-# This is the testing synonym dictionary
+# ===========================================
+# Semantic Book Search and Recommendation UI 
+# ===========================================
+
+def css():
+    st.markdown("""
+    <style>
+    /* ===== IMPORT FONTS ===== */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    
+    /* ===== RESET & BASE ===== */
+    .stApp {
+        background: #f8fafc;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* ===== HEADER ===== */
+    .system-header {
+        background: linear-gradient(135deg, #0c0e1a 0%, #1a1c3a 50%, #2d1b4e 100%);
+        padding: 3.5rem 3rem;
+        border-radius: 20px;
+        margin-bottom: 2.5rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    
+    .system-header::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 70%;
+        height: 200%;
+        background: radial-gradient(ellipse at 70% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    
+    .system-header::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #818cf8, #a78bfa, #c084fc, #818cf8);
+        background-size: 300% 100%;
+        animation: shimmerHeader 4s ease-in-out infinite;
+    }
+    
+    @keyframes shimmerHeader {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    
+    .system-header .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .system-header .logo-icon {
+        font-size: 3.5rem;
+        filter: drop-shadow(0 0 20px rgba(129, 140, 248, 0.3));
+    }
+    
+    .system-header h1 {
+        font-size: 2.8rem;
+        font-weight: 800;
+        color: white;
+        margin: 0;
+        letter-spacing: -0.5px;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .system-header h1 .highlight {
+        background: linear-gradient(135deg, #818cf8, #a78bfa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .system-header .tagline {
+        color: rgba(255,255,255,0.7);
+        font-size: 1.1rem;
+        font-weight: 300;
+        margin-top: 0.25rem;
+        position: relative;
+        z-index: 1;
+        letter-spacing: 0.3px;
+    }
+    
+    .system-header .badge-container {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+        position: relative;
+        z-index: 1;
+        flex-wrap: wrap;
+    }
+    
+    .system-header .badge {
+        background: rgba(255,255,255,0.08);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 0.4rem 1.2rem;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.8);
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .system-header .badge .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #4ade80;
+        display: inline-block;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    
+    /* ===== SEARCH SECTION ===== */
+    .search-section {
+        background: white;
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+        margin-bottom: 2.5rem;
+        border: 1px solid rgba(0,0,0,0.04);
+    }
+    
+    .search-section .section-label {
+        font-weight: 600;
+        color: #1a1a2e;
+        font-size: 0.95rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .search-section .section-label .icon {
+        font-size: 1.2rem;
+    }
+    
+    /* ===== RESULTS GRID ===== */
+    .results-container {
+        margin-top: 1.5rem;
+    }
+    
+    .results-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #f0f4ff;
+    }
+    
+    .results-header h3 {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin: 0;
+    }
+    
+    .results-header .count-badge {
+        background: #eef2ff;
+        color: #4f46e5;
+        padding: 0.3rem 1rem;
+        border-radius: 50px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    /* ===== BOOK CARDS - GRID LAYOUT ===== */
+    .book-grid {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 1rem;
+        margin: 1.5rem 0;
+    }
+
+    .book-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.04);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 200px;
+    }
+
+    .book-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 4px;
+        background: linear-gradient(180deg, #818cf8, #a78bfa);
+        border-radius: 4px 0 0 4px;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .book-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(99, 102, 241, 0.12);
+        border-color: rgba(129, 140, 248, 0.2);
+    }
+
+    .book-card:hover::before {
+        opacity: 1;
+    }
+
+    .book-card .book-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .book-card .book-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .book-card .book-title {
+        font-weight: 600;
+        color: #1a1a2e;
+        font-size: 0.85rem;
+        line-height: 1.3;
+        margin-bottom: 0.1rem;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        min-height: 2.2rem;
+    }
+
+    .book-card .book-author {
+        color: #6b7280;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .book-card .book-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: auto;
+        padding-top: 0.5rem;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .book-card .genre-tag {
+        display: inline-block;
+        background: #eef2ff;
+        color: #4f46e5;
+        font-size: 0.6rem;
+        padding: 0.15rem 0.7rem;
+        border-radius: 50px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .book-card .price-tag {
+        font-weight: 700;
+        color: #1a1a2e;
+        font-size: 0.9rem;
+        margin-left: auto;
+        white-space: nowrap;
+    }
+
+    .book-card .price-tag .currency {
+        font-size: 0.7rem;
+        color: #6b7280;
+        font-weight: 400;
+    }
+    
+    /* ===== STAT CARDS ===== */
+    .stat-card {
+        background: white;
+        padding: 1.75rem 1.5rem;
+        border-radius: 14px;
+        text-align: center;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.04);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #818cf8, #a78bfa);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+    }
+    
+    .stat-card:hover::before {
+        opacity: 1;
+    }
+    
+    .stat-card .stat-number {
+        font-size: 2.4rem;
+        font-weight: 800;
+        color: #1a1a2e;
+        display: block;
+        line-height: 1.2;
+    }
+    
+    .stat-card .stat-number .accent {
+        color: #4f46e5;
+    }
+    
+    .stat-card .stat-label {
+        font-size: 0.85rem;
+        color: #6b7280;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        margin-top: 0.25rem;
+    }
+    
+    /* ===== SECTION HEADERS ===== */
+    .section-header-premium {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1a1a2e;
+        margin: 2.5rem 0 1.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .section-header-premium .highlight {
+        color: #4f46e5;
+    }
+    
+    .section-header-premium .line {
+        flex: 1;
+        height: 2px;
+        background: linear-gradient(90deg, #e5e7eb, transparent);
+        margin-left: 1rem;
+    }
+    
+    /* ===== BUTTONS ===== */
+    .btn-premium {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: white;
+        border: none;
+        padding: 0.75rem 2.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        width: 100%;
+        box-shadow: 0 4px 16px rgba(79, 70, 229, 0.25);
+    }
+    
+    .btn-premium:hover {
+        transform: scale(1.02);
+        box-shadow: 0 8px 32px rgba(79, 70, 229, 0.35);
+    }
+    
+    .btn-premium:active {
+        transform: scale(0.98);
+    }
+    
+    /* ===== TABS ===== */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+        background: white;
+        padding: 0.5rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+        border: 1px solid rgba(0,0,0,0.04);
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 0.5rem 1.25rem;
+        font-weight: 500;
+        color: #6b7280;
+        transition: all 0.3s ease;
+    }
+    
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        color: white;
+        box-shadow: 0 4px 16px rgba(79, 70, 229, 0.25);
+    }
+    
+    .stTabs [data-baseweb="tab"]:hover:not([aria-selected="true"]) {
+        background: #f3f4f6;
+        color: #1a1a2e;
+    }
+    
+    /* ===== FOOTER ===== */
+    .store-footer {
+        text-align: center;
+        padding: 2.5rem 2rem;
+        margin-top: 3rem;
+        border-top: 1px solid rgba(0,0,0,0.06);
+        color: #6b7280;
+    }
+    
+    .store-footer .brand {
+        font-weight: 700;
+        color: #1a1a2e;
+    }
+    
+    .store-footer .brand .accent {
+        color: #4f46e5;
+    }
+    
+    .store-footer .footer-links {
+        display: flex;
+        justify-content: center;
+        gap: 2rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .store-footer .footer-links span {
+        font-size: 0.85rem;
+        color: #9ca3af;
+    }
+    
+    .store-footer .footer-links .link {
+        color: #4f46e5;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    
+    .store-footer .footer-links .link:hover {
+        color: #7c3aed;
+    }
+    
+    /* ===== SIDEBAR ===== */
+    .css-1d391kg, .css-1aumxhk {
+        background: white;
+        border-right: 1px solid rgba(0,0,0,0.04);
+    }
+    
+    .sidebar-brand {
+        text-align: center;
+        padding: 1.5rem 0 1rem 0;
+    }
+    
+    .sidebar-brand .icon {
+        font-size: 3rem;
+    }
+    
+    .sidebar-brand h3 {
+        color: #1a1a2e;
+        font-weight: 700;
+        margin: 0.25rem 0 0 0;
+    }
+    
+    .sidebar-brand p {
+        color: #6b7280;
+        font-size: 0.85rem;
+        margin: 0;
+    }
+    
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 768px) {
+        .system-header h1 {
+            font-size: 1.8rem;
+        }
+        .system-header {
+            padding: 2rem 1.5rem;
+        }
+        .search-section {
+            padding: 1.5rem;
+        }
+        .book-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    @media (min-width: 769px) and (max-width: 1024px) {
+        .book-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #818cf8, #a78bfa);
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #6366f1, #8b5cf6);
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# ====================================================
+# This is the synonym dictionary
+# ====================================================
 SYNONYM_MAP = {
     "Fantasy": [
         "fantasy", "magic", "wizard", "sorcerer", "witch", "curse",
@@ -70,7 +612,9 @@ SYNONYM_MAP = {
     ],
 }
 
+# ====================================================
 # Build reverse synonym lookup (e.g., "wizard" <-> "magic")
+# ====================================================
 def build_reverse_synonym_map():
     """Create a mapping from any synonym to its primary category/genre"""
     reverse_map = {}
@@ -86,9 +630,9 @@ def build_reverse_synonym_map():
 
 REVERSE_SYNONYM_MAP = build_reverse_synonym_map()
 
-# ---------------------------
-# 1. LOAD RDF DATA
-# ---------------------------
+# ====================================================
+# Load RDF Data
+# ====================================================
 @st.cache_resource
 def load_data():
     """Load RDF data and ontology"""
@@ -109,9 +653,9 @@ def load_data():
     
     return g
 
-# ---------------------------
-# 2. REASONING WITH RDFS_OWLRL_Semantics
-# ---------------------------
+# ====================================================
+# Reasoning with RDFS_OWLRL_Semantics
+# ====================================================
 @st.cache_resource
 def init_reasoning_graph():
     """OWL Reasoning (RDFS_OWLRL_Semantics)"""
@@ -155,9 +699,9 @@ def get_active_graph():
     else:
         return st.session_state.get("original_graph", None)
     
-# ---------------------------
-# 3. SPARQL QUERY FUNCTIONS
-# ---------------------------
+# ====================================================
+# SPARQL Query Fucntions
+# ====================================================
 
 def get_all_books(graph):
     """Get all books in the catalog"""
@@ -208,13 +752,17 @@ def get_all_books(graph):
             st.warning("No books found in the catalog")
             return pd.DataFrame(columns=["Title", "Author", "Genre", "Price (RM)"])
         else:
-            st.info(f"✅ Loaded {len(df)} books from catalog")
             return df
         
     except Exception as e:
         st.error(f"Error in get_all_books: {e}")
         return pd.DataFrame(columns=["Title", "Author", "Genre", "Price (RM)"])
+    
+# ====================================================
+# Other Funtions
+# ====================================================
 
+# ========================= Get the Top Rated Books =========================
 def get_top_rated_recommendations(graph):
     query = """
     PREFIX : <http://www.example.org/bookstore#>
@@ -235,6 +783,7 @@ def get_top_rated_recommendations(graph):
         })
     return pd.DataFrame(results)
 
+# ========================= Search by Keyword =========================
 def search_by_keyword(graph, keyword):
     """
     Advanced keyword search that handles:
@@ -420,6 +969,7 @@ def search_by_keyword(graph, keyword):
     # ============================================
     return simple_keyword_search(graph, keyword_original)
 
+# ========================= Simple Keyword Search =========================
 def simple_keyword_search(graph, keyword):
     """Fallback: keyword search (title/author) with genre lookup."""
     keyword_clean = keyword.strip().replace("'", "\\'").replace('"', '\\"')
@@ -473,30 +1023,47 @@ def simple_keyword_search(graph, keyword):
         st.error(f"Fallback search failed: {e}")
         return pd.DataFrame(columns=["Title", "Author", "Genre", "Price (RM)"])
 
+# ========================= Filter by Price =========================
 def filter_by_price(graph, min_price, max_price):
     """Filter books within price range"""
     query = f"""
     PREFIX : <http://www.example.org/bookstore#>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     
-    SELECT ?title ?author ?price WHERE {{
+    SELECT ?title ?author ?price ?genre WHERE {{
         ?book rdf:type :Book ;
               :title ?title ;
               :author ?author ;
               :price ?price .
+        OPTIONAL {{ ?book :hasGenre ?genre . }}
         FILTER(?price >= {min_price} && ?price <= {max_price})
     }}
     ORDER BY ?price
     """
     results = []
-    for row in graph.query(query):
-        results.append({
-            "Title": str(row.title),
-            "Author": str(row.author),
-            "Price (RM)": float(row.price)
-        })
+    try:
+        for row in graph.query(query):
+            genre = "Unknown"
+            if row.genre:
+                genre_uri = str(row.genre)
+                if "#" in genre_uri:
+                    genre = genre_uri.split("#")[-1]
+                    if genre in ["Book", "Bestseller", "BestRecommend"]:
+                        genre = "Unknown"
+            
+            results.append({
+                "Title": str(row.title),
+                "Author": str(row.author),
+                "Genre": genre,
+                "Price (RM)": float(row.price)
+            })
+    except Exception as e:
+        st.error(f"Error in filter_by_price: {e}")
+        return pd.DataFrame(columns=["Title", "Author", "Genre", "Price (RM)"])
+    
     return pd.DataFrame(results)
 
+# ========================= Get the Similar Books =========================
 def get_similar_books(graph, book_title):
     """Find books similar to a given book using OWL reasoning"""
 
@@ -615,11 +1182,9 @@ def get_similar_books(graph, book_title):
             seen.add(r["Title"])
             unique_results.append(r)
 
-    if st.session_state.get("reasoning_enabled", False) and len(unique_results) > 0:
-        st.info(f"🔮 The reasoning engine recommended {len(unique_results)} related books.")
-
     return pd.DataFrame(unique_results)
 
+# ========================= Get the Genre Statistics =========================
 def get_genre_statistics(graph, genre):
     """Get statistics for a specific genre"""
     df = get_books_by_genre(graph, genre)
@@ -644,7 +1209,7 @@ def get_genre_statistics(graph, genre):
         "authors": df['Author'].unique().tolist(),
         "bestrecommend_count": bestrecommend_count
     }
-
+# ========================= Get the Author Statistics =========================
 def get_author_statistics(graph, author_name):
     """Get statistics for a specific author, using rating >= 4.5 as best recommend."""
     query = f"""
@@ -699,6 +1264,7 @@ def get_author_statistics(graph, author_name):
         "genres": sorted(list(genres_set))
     }
 
+# ========================= Get the Author and Genre =========================
 def get_author_genres(graph, author):
     """Get all genres for an author using OWL reasoning."""
     genres = set()
@@ -734,7 +1300,7 @@ def get_author_genres(graph, author):
 
     return genres
 
-
+# ========================= Get the Similar Authors =========================
 def get_similar_authors(graph, current_author, current_genres, authors_list):
     """Find authors who share at least one genre with the current author."""
     current_genre_set = set(current_genres) if current_genres else get_author_genres(graph, current_author)
@@ -755,6 +1321,7 @@ def get_similar_authors(graph, current_author, current_genres, authors_list):
 
     return similar_authors
 
+# ========================= Get the Books by Genre =========================
 def get_books_by_genre(graph, genre):
     """Get books by genre using OWL reasoning"""
     query = f"""
@@ -780,6 +1347,7 @@ def get_books_by_genre(graph, genre):
     
     return pd.DataFrame(results)
 
+# ========================= Get the Books by Author =========================
 def get_books_by_author(graph, author_name):
     """Get all books by a specific author"""
     query = f"""
@@ -818,6 +1386,7 @@ def get_books_by_author(graph, author_name):
         })
     return pd.DataFrame(results)
 
+# ========================= Simple Keyword Recommendation =========================
 def simple_keyword_recommendation(description, category, graph):
     """Original keyword recommendation method"""
     all_books = get_all_books(graph)
@@ -840,6 +1409,7 @@ def simple_keyword_recommendation(description, category, graph):
     recommendations = all_books[all_books['Score'] > 0].sort_values('Score', ascending=False).head(15)
     return recommendations
 
+# ========================= Extract the Genres from Description =========================
 def extract_genres_from_description(description):
     """
     Extract ALL genres from the description by checking each word against the synonym map.
@@ -900,6 +1470,7 @@ def extract_genres_from_description(description):
     
     return target_genres
 
+# ========================= Get the Recommendation by Description =========================
 def get_recommendations_by_description(description, category, graph):
     """
     OWL reasoning based book recommendation.
@@ -1051,7 +1622,6 @@ def get_recommendations_by_description(description, category, graph):
 
         if recommendations:
             df = pd.DataFrame(recommendations)
-            st.info(f"🔮 Reasoning engine found {len(df)} relevant books for your description.")
             return df
         else:
             return pd.DataFrame()
@@ -1060,6 +1630,7 @@ def get_recommendations_by_description(description, category, graph):
         st.error(f"Reasoning recommendation failed: {e}. Falling back to simple mode.")
         return simple_keyword_recommendation(description, category, graph)
 
+# ========================= Get the Books Cover Image =========================
 def get_book_cover(book_title):
     """Get book cover image path"""
     cover_mapping = {
@@ -1156,6 +1727,7 @@ def get_book_cover(book_title):
 
     return None
 
+# ========================= Display the Book Card =========================
 def display_book_card(book_title, author, genre, price, show_cover=True):
     """Display a book card with cover image"""
     cover_path = get_book_cover(book_title) if show_cover else None
@@ -1172,120 +1744,121 @@ def display_book_card(book_title, author, genre, price, show_cover=True):
         **{book_title}**  
         *{author}*  
         {genre}  
-        RM {price}
+        RM {price:.2f}
         """)
 
-# ---------------------------
-# 4. HOMEPAGE UI
-# ---------------------------
+# ========================= Homepage =========================
 def show_homepage():
-    """Display the main homepage with recommendation system"""
+    """Display the main homepage with system UI"""
     
-    # Hero Section
-    st.markdown("""
-    <style>
-    .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 20px;
-        color: white;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .book-card {
-        background-color: #f8f9fa;
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-        border-left: 4px solid #667eea;
-    }
-    .recommendation-title {
-        font-size: 0.9rem;
-        font-weight: bold;
-        margin-bottom: 0.2rem;
-    }
-    .recommendation-author {
-        font-size: 0.8rem;
-        color: #6c757d;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    css()
     
-    # Header
-    st.markdown('<div class="main-header"><h1>📚 Semantic Book Recommender</h1><p>Discover your next favorite book using AI-powered semantic search</p></div>', unsafe_allow_html=True)
-    
-    # Use reasoning
+    # === Main Semantic Recommendation ===
     graph = get_active_graph() 
     if graph is None:
         with st.spinner("Loading book catalog..."):
             graph = load_data()
     
-    # Create two columns for input
-    col1, col2 = st.columns(2)
+    st.markdown("""
+    <div class="system-header">
+        <div class="logo-container">
+            <div>
+                <h1>Semantic Web-Based <span class="highlight"> Book Search and Recommendation System</span></h1>
+                <p class="tagline">Discover your next favorite read through semantic web-based search and recommendation</p>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Search Book Section
+    col1, col2 = st.columns([2.5, 1.5])
     
     with col1:
-        st.write("##### Please enter a description of a book you like")
+        st.markdown('<div class="section-label">What kind of book are you looking for?</div>', unsafe_allow_html=True)
         description = st.text_area(
             "",
-            placeholder="e.g., A tale of friendship, magic, and adventure...",
-            height=50,
-            label_visibility="collapsed"
+            placeholder="Describe your ideal book... e.g., A magical adventure with wizards and mythical creatures",
+            height=60,
+            label_visibility="collapsed",
+            key="search_input"
         )
 
+    # Select Genre Section
     with col2:
-        st.write("##### Select a category")
+        st.markdown('<div class="section-label">Filter by genre</div>', unsafe_allow_html=True)
         categories = ["All", "NonFiction", "Fantasy", "Mystery", "Romance", "YoungAdult", 
-                      "Thriller", "History", "Biography", "Technical", "Cookbook", "Education"]
+                    "Thriller", "History", "Biography", "Technical", "Cookbook", "Education"]
         category = st.selectbox(
             "",
             categories,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            key="category_select"
         )
+
+    # Centered button
+    col_btn1, col_btn2, col_btn3 = st.columns([1, 50, 1])
+    with col_btn2:
+        if st.button("Find Books", type="primary", use_container_width=True, key="search_btn"):
+            if description.strip():
+                with st.spinner("Analyzing your preferences with semantic web-based search..."):
+                    recommendations = get_recommendations_by_description(description, category, graph)
+                    
+                    if not recommendations.empty:
+                        # Results header with count
+                        st.markdown(f"""
+                        <div class="results-header">
+                            <h3>Your Recommendations</h3>
+                            <span class="count-badge">{len(recommendations)} books found</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        cols = st.columns(6)
+                        
+                        for idx, (_, book) in enumerate(recommendations.iterrows()):
+                            with cols[idx % 6]: 
+                                cover_path = get_book_cover(book['Title'])
+                                
+                                if cover_path and os.path.exists(cover_path):
+                                    st.image(cover_path, width=120)
+                                else:
+                                    st.markdown('<div style="text-align: center; font-size: 3rem;">📚</div>', unsafe_allow_html=True)
+
+                                st.markdown(f"""
+                                <div style="padding: 0.5rem 0;">
+                                    <div style="font-weight: 600; color: #1a1a2e; font-size: 0.85rem; line-height: 1.3; min-height: 2.4rem;">{book['Title']}</div>
+                                    <div style="color: #6b7280; font-size: 0.75rem;">by {book['Author']}</div>
+                                    <div style="margin-top: 0.3rem;">
+                                        <span style="display: inline-block; background: #eef2ff; color: #4f46e5; font-size: 0.6rem; padding: 0.1rem 0.6rem; border-radius: 50px; font-weight: 600;">{book['Genre']}</span>
+                                        <span style="float: right; font-weight: 700; color: #1a1a2e; font-size: 0.9rem;">RM {book['Price (RM)']:.2f}</span>
+                                    </div>
+                                </div>
+                                """, unsafe_allow_html=True)
+
+                        with st.expander("View Complete List as Table"):
+                            st.dataframe(
+                                recommendations[['Title', 'Author', 'Genre', 'Price (RM)']], 
+                                use_container_width=True,
+                                hide_index=True
+                            )
+                    else:
+                        st.warning("No recommendations found. Please try different keywords.")
+            else:
+                st.warning("Please describe the kind of book you're looking for.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    # Recommend button
-    if st.button("Recommend Books", type="primary", use_container_width=True):
-        if description.strip():
-            with st.spinner("Finding your perfect books..."):
-                recommendations = get_recommendations_by_description(description, category, graph)
-                
-                if not recommendations.empty:
-                    st.success(f"Found {len(recommendations)} recommendations for you!")
-                    
-                    # Display recommendations in columns
-                    st.subheader("Recommended Books")
-                    
-                    # Create rows of 3 columns each
-                    cols = st.columns(3)
-                    for idx, (_, book) in enumerate(recommendations.iterrows()):
-                        with cols[idx % 3]:
-                            st.markdown(f"""
-                            <div class="book-card">
-                                <div class="recommendation-title">{book['Title'][:40]}...</div>
-                                <div class="recommendation-author">{book['Author']}</div>
-                                <div class="recommendation-author">{book['Genre']}</div>
-                                <div class="recommendation-author">RM {book['Price (RM)']}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                    
-                    # Show full table
-                    with st.expander("View all recommendations in table"):
-                        st.dataframe(recommendations[['Title', 'Author', 'Genre', 'Price (RM)']], use_container_width=True)
-                else:
-                    st.warning("No recommendations found. Try different keywords!")
-        else:
-            st.warning("Please enter a description of a book you like!")
-    
-    # Featured Books Section
-    st.markdown("---")
-    st.subheader("Best Recommend Books ⭐")
+    # === Best Recommend Books Section ===
+    st.markdown("""
+    <div class="section-header-premium">
+        <span class="highlight">Best Recommend</span> Books
+        <span class="line"></span>
+    </div>
+    """, unsafe_allow_html=True)
 
     best_recommend = get_top_rated_recommendations(graph)
 
     if not best_recommend.empty:
-        st.info(f"📚 Found {len(best_recommend)} books with rating ≥ 4.5")
-        
-        # Default show first 8 books, expand with "Show All" checkbox
-        show_count = 4  # Default show 4 books
+        show_count = 6  
         show_all = st.checkbox("Show All Books", value=False)
         
         if show_all:
@@ -1295,24 +1868,25 @@ def show_homepage():
             if len(best_recommend) > show_count:
                 st.caption(f"Showing first {show_count} books. Check the box above to view all {len(best_recommend)} books.")
         
-        # Display books
-        cols = st.columns(4)
+        cols = st.columns(6) 
         for idx, (_, book) in enumerate(display_books.iterrows()):
-            with cols[idx % 4]:
+            with cols[idx % 6]: 
                 cover_path = get_book_cover(book['Title'])
                 with st.container():
                     if cover_path and os.path.exists(cover_path):
-                        st.image(cover_path, width=140)
+                        st.image(cover_path, width=120)
                     else:
-                        st.write("📚")
+                        st.markdown('<div style="text-align: center; font-size: 3rem; margin-bottom: 0.5rem;">📚</div>', unsafe_allow_html=True)
+                    
                     st.markdown(f"""
-                    **{book['Title']}**  
-                    *{book['Author']}*  
-                    RM {book['Price (RM)']:.2f}
-                    """)
+                    <div class="featured-item" style="padding-top: 0.5rem;">
+                        <div class="book-title" style="font-size: 0.8rem;">{book['Title'][:25]}{'...' if len(book['Title']) > 25 else ''}</div>
+                        <div class="book-author" style="font-size: 0.7rem;">{book['Author']}</div>
+                        <div class="book-price" style="font-size: 0.85rem;">RM {book['Price (RM)']:.2f}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
         
-        # Expandable table view
-        with st.expander("📋 View All Recommended Books (Table View)"):
+        with st.expander("View as Table"):
             display_df = best_recommend[['Title', 'Author', 'Price (RM)']].copy()
             display_df.index = range(1, len(display_df) + 1)
             display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
@@ -1320,9 +1894,13 @@ def show_homepage():
     else:
         st.info("No books with rating ≥ 4.5 found.")
     
-    # Quick Stats
-    st.markdown("---")
-    col1, col2, col3, col4 = st.columns(4)
+    # === Statistics Section ===
+    st.markdown("""
+    <div class="section-header-premium">
+        <span class="highlight">System</span> Statistics
+        <span class="line"></span>
+    </div>
+    """, unsafe_allow_html=True)
     
     all_books = get_all_books(graph)
     
@@ -1334,37 +1912,67 @@ def show_homepage():
         unique_authors = 0
         unique_genres = 0
         total_books = 0
-        st.warning("Unable to load book statistics. Please check data files.")
     
     top_rated_count = len(best_recommend) if not best_recommend.empty else 0
     
-    with col1:
-        st.metric("Total Books", total_books)
-    with col2:
-        st.metric("Authors", unique_authors)
-    with col3:
-        st.metric("Genres", unique_genres)
-    with col4:
-        st.metric("Top Rated", top_rated_count)
-
-# ---------------------------
-# 5. SEARCH CONTENT UI
-# ---------------------------
-def show_search_content(graph):
-    """Display search content without sidebar navigation"""
+    col1, col2, col3, col4 = st.columns(4)
     
-    # Create tabs for different search methods
+    with col1:
+        st.markdown(f"""
+        <div class="stat-card">
+            <span class="stat-number">{total_books}</span>
+            <span class="stat-label">Total Books</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="stat-card">
+            <span class="stat-number"><span class="accent">{unique_authors}</span></span>
+            <span class="stat-label">Authors</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown(f"""
+        <div class="stat-card">
+            <span class="stat-number">{unique_genres}</span>
+            <span class="stat-label">Genres</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col4:
+        st.markdown(f"""
+        <div class="stat-card">
+            <span class="stat-number"><span class="accent">{top_rated_count}</span></span>
+            <span class="stat-label">Top Rated</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+def show_search_content(graph):
+    """Display advanced search with UI"""
+    
+    st.markdown("""
+    <div class="section-header-premium">
+        <span class="highlight">Advanced</span> Search
+        <span class="line"></span>
+    </div>
+    <p style="color: #6b7280; margin-bottom: 1.5rem;">Explore our curated collection with powerful search tools</p>
+    """, unsafe_allow_html=True)
+    
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
-        "🔍 Keyword Search", 
-        "💰 Price Range", 
-        "📚 Browse by Genre", 
-        "👤 Browse by Author", 
-        "🔗 Similar Books"
+        "Keyword", 
+        "Price Range", 
+        "Genre", 
+        "Author", 
+        "Similar Books"
     ])
     
+    # === Search by Keyword ===
     with tab1:
-        st.subheader("Search Books by Title, Author, Category or Genre")
-        keyword = st.text_input("Enter book title, author name, or genre:", "Harry Potter", key="keyword_search")
+        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
+        st.subheader("Keyword Search")
+        keyword = st.text_input("Enter a book title, author name, or genre:", "Harry Potter", key="keyword_search")
         if keyword:
             df = search_by_keyword(graph, keyword)
             if not df.empty:
@@ -1376,24 +1984,26 @@ def show_search_content(graph):
                         price=book['Price (RM)'],
                         show_cover=True
                     )
-                with st.expander("View as table"):
+                with st.expander("View as Table"):
                     display_df = df[['Title', 'Author', 'Genre', 'Price (RM)']].copy()
                     display_df.index = range(1, len(display_df) + 1)
                     display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
                     st.dataframe(display_df, use_container_width=True)
-                st.success(f"Found {len(df)} books matching '{keyword}'")
             else:
                 st.warning("No books found. Try a different keyword.")
+        st.markdown('</div>', unsafe_allow_html=True)
     
+    # === Price Range ===
     with tab2:
-        st.subheader("Filter Books by Price")
+        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
+        st.subheader("Filter by Price")
         col1, col2 = st.columns(2)
         with col1:
-            min_price = st.number_input("Min Price (RM)", min_value=0, value=0, step=5, key="min_price")
+            min_price = st.number_input("Minimum Price (RM)", min_value=0, value=0, step=5, key="min_price")
         with col2:
-            max_price = st.number_input("Max Price (RM)", min_value=0, value=100, step=5, key="max_price")
+            max_price = st.number_input("Maximum Price (RM)", min_value=0, value=100, step=5, key="max_price")
         
-        if st.button("Search", type="primary", key="price_search"):
+        if st.button("Search by Price", type="primary", key="price_search"):
             df = filter_by_price(graph, min_price, max_price)
             if not df.empty:
                 for _, book in df.iterrows():
@@ -1404,40 +2014,44 @@ def show_search_content(graph):
                         price=book['Price (RM)'],
                         show_cover=True
                     )
-                with st.expander("View as table"):
+                with st.expander("View as Table"):
                     display_df = df[['Title', 'Author', 'Price (RM)']].copy()
                     display_df.index = range(1, len(display_df) + 1)
                     display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
                     st.dataframe(display_df, use_container_width=True)
+                
                 col_a, col_b, col_c = st.columns(3)
                 with col_a:
                     st.metric("Average Price", f"RM{df['Price (RM)'].mean():.2f}")
                 with col_b:
                     st.metric("Total Books", len(df))
                 with col_c:
-                    st.metric("Cheapest Book", f"RM{df['Price (RM)'].min():.2f}")
+                    st.metric("Cheapest", f"RM{df['Price (RM)'].min():.2f}")
             else:
                 st.warning("No books found in this price range.")
+        st.markdown('</div>', unsafe_allow_html=True)
     
+    # === Browse by Genre ===
     with tab3:
-        st.subheader("Browse Books by Genre")
+        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
+        st.subheader("Browse by Genre")
         genres = ["Fantasy", "Mystery", "Romance", "YoungAdult", "Thriller", 
                   "History", "Biography", "Technical", "Cookbook", "Education"]
+        genres = sorted(genres)
         genre = st.selectbox("Select a genre:", genres, key="genre_select")
         
         stats = get_genre_statistics(graph, genre)
         
         if stats["total_books"] > 0:
             df = get_books_by_genre(graph, genre)
-            st.info(f"✅ Found {len(df)} books in {genre}")
-            st.markdown("---")
-            st.markdown(f"### Genre Summary: {genre}")
             
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Total Books", stats["total_books"])
             with col2:
                 st.metric("Authors", len(stats["authors"]))
+            with col3:
+                st.metric("Top Rated", stats["bestrecommend_count"])
             
             st.markdown("---")
             
@@ -1450,7 +2064,7 @@ def show_search_content(graph):
                     show_cover=True
                 )
             
-            with st.expander("View as table"):
+            with st.expander("View as Table"):
                 display_df = df[['Title', 'Author', 'Genre', 'Price (RM)']].copy()
                 display_df.index = range(1, len(display_df) + 1)
                 display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
@@ -1458,9 +2072,12 @@ def show_search_content(graph):
             
         else:
             st.warning(f"No books found in {genre}")
+        st.markdown('</div>', unsafe_allow_html=True)
     
+    # === Browse by Author ===
     with tab4:
-        st.subheader("Browse Books by Author")
+        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
+        st.subheader("Browse by Author")
         authors_list = [
             "J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien",
             "Dan Brown", "Stieg Larsson", "Thomas Harris",
@@ -1473,6 +2090,7 @@ def show_search_content(graph):
             "Irma S. Rombauer", "Julia Child", "Yotam Ottolenghi",
             "Paulo Freire", "Carol S. Dweck", "Dale Carnegie",
         ]
+        authors_list = sorted(authors_list)
         author_name = st.selectbox("Select an author:", authors_list, key="author_select")
         
         if author_name:
@@ -1480,15 +2098,12 @@ def show_search_content(graph):
             
             if author_stats["total_books"] > 0:
                 df = author_stats["df"]
-                st.info(f"✅ Found {len(df)} books by {author_name}")
-                st.markdown("---")
-                st.markdown(f"### Author Summary: {author_name}")
                 
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.metric("Total Books", author_stats["total_books"])
                 with col2:
-                    st.metric("Best Recommend Books", author_stats["bestrecommend_count"])
+                    st.metric("Top Rated", author_stats["bestrecommend_count"])
                 with col3:
                     st.metric("Genres", ", ".join(author_stats["genres"]) if author_stats["genres"] else "Unknown")
                 
@@ -1503,7 +2118,7 @@ def show_search_content(graph):
                         show_cover=True
                     )
                 
-                with st.expander("View as table"):
+                with st.expander("View as Table"):
                     display_df = df[['Title', 'Genre', 'Price (RM)', 'Best Recommend']].copy()
                     display_df.index = range(1, len(display_df) + 1)
                     display_df['Price (RM)'] = display_df['Price (RM)'].apply(lambda x: f"{x:.2f}")
@@ -1511,7 +2126,7 @@ def show_search_content(graph):
                                 
                 if author_stats["genres"]:
                     st.markdown("---")
-                    st.markdown("## 🔍 Similar Authors You Might Like")
+                    st.markdown("### Similar Authors You Might Like")
                     
                     similar_authors = get_similar_authors(
                         graph, 
@@ -1522,7 +2137,7 @@ def show_search_content(graph):
                     
                     if similar_authors:
                         for sim_author in similar_authors:
-                            with st.expander(f"**{sim_author['name']}** | **Genre:** {', '.join(sorted(sim_author['shared_genres']))}"):
+                            with st.expander(f"**{sim_author['name']}** — {', '.join(sorted(sim_author['shared_genres']))}"):
                                 
                                 sim_author_stats = get_author_statistics(graph, sim_author['name'])
                                 sim_df = sim_author_stats["df"]
@@ -1568,14 +2183,18 @@ def show_search_content(graph):
                         st.info("No similar authors found based on shared genres.")
             else:
                 st.warning(f"No books found by {author_name}")
+        st.markdown('</div>', unsafe_allow_html=True)
     
+    # === Similar Books ===
     with tab5:
+        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
         st.subheader("Find Similar Books")
         st.caption("Based on same author and genre (powered by OWL reasoning)")
         
         all_books = get_all_books(graph)
         if not all_books.empty:
             book_titles = all_books['Title'].tolist()
+            book_titles = sorted(book_titles)
             book_title = st.selectbox("Select a book you like:", book_titles, key="similar_book_select")
             
             if book_title:
@@ -1594,16 +2213,15 @@ def show_search_content(graph):
                     st.info("No similar books found in the catalog yet.")
         else:
             st.warning("No books available.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-# ---------------------------
-# 6. MAIN APP
-# ---------------------------
-# Add these helper functions near the beginning of the file
+# ===========================================
+# Main Application 
+# ===========================================
 def verify_file_paths():
     """Verify that all required files exist"""
     issues = []
     
-    # Check whether files exist
     if not os.path.exists(DATA_PATH):
         issues.append(f"Data file not found: {DATA_PATH}")
     else:
@@ -1614,7 +2232,6 @@ def verify_file_paths():
     else:
         st.sidebar.success(f"✅ Ontology file found: {os.path.basename(ONTOLOGY_PATH)}")
     
-    # Check image directory
     if not os.path.exists(IMAGE_DIR):
         st.sidebar.warning(f"Image directory not found: {IMAGE_DIR}")
     
@@ -1626,14 +2243,12 @@ def load_books_graph_only():
     try:
         g = rdflib.Graph()
         
-        # Bind namespaces
         g.bind("", "http://www.example.org/bookstore#")
         g.bind("rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#")
         g.bind("rdfs", "http://www.w3.org/2000/01/rdf-schema#")
         g.bind("owl", "http://www.w3.org/2002/07/owl#")
         g.bind("xsd", "http://www.w3.org/2001/XMLSchema#")
         
-        # Check whether files exist
         if not os.path.exists(DATA_PATH):
             st.error(f"Data file not found at: {DATA_PATH}")
             st.info(f"Current working directory: {os.getcwd()}")
@@ -1644,11 +2259,9 @@ def load_books_graph_only():
             st.error(f"Ontology file not found at: {ONTOLOGY_PATH}")
             return None
         
-        # Parse files
         g.parse(DATA_PATH, format="turtle")
         g.parse(ONTOLOGY_PATH, format="turtle")
         
-        # Verify loaded data
         test_query = list(g.query("""
             PREFIX : <http://www.example.org/bookstore#>
             SELECT ?title WHERE { ?book :title ?title } LIMIT 1
@@ -1667,30 +2280,66 @@ def load_books_graph_only():
         return None
 
 def main():
-    st.set_page_config(page_title="Semantic Book Recommender", layout="wide", page_icon="📚")
+    st.set_page_config(
+        page_title="Semantic Bookstore", 
+        layout="wide", 
+        page_icon="📚",
+        initial_sidebar_state="expanded"
+    )
     
-    # Display file path information (for debugging)
-    with st.sidebar.expander("🔧 Debug Info", expanded=False):
-        st.write(f"**App path:** `{BASE_DIR}`")
-        st.write(f"**Root path:** `{ROOT_DIR}`")
-        st.write(f"**Data path:** `{DATA_PATH}`")
-        st.write(f"**Ontology path:** `{ONTOLOGY_PATH}`")
-        st.write(f"**Image path:** `{IMAGE_DIR}`")
-        st.write(f"**Working dir:** `{os.getcwd()}`")
+    # ===== SIDEBAR DEBUG =====
+    with st.sidebar:
+        st.markdown("""
+        <div class="sidebar-brand">
+            <div class="icon">📖</div>
+            <h3>Bookstore</h3>
+            <p>Semantic Discovery</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        if st.session_state.get("reasoning_enabled", False):
+            st.success("🔮 OWL Reasoning: Enabled")
+            st.info("All searches use reasoning-enhanced semantic relationships")
+        else:
+            st.warning("⚠️ OWL Reasoning: Disabled")
+        
+        st.markdown("---")
+        
+        st.markdown("""
+        <div style="padding: 0.5rem 0;">
+            <p style="font-size: 0.75rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Quick Stats</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        graph = get_active_graph()
+        if graph:
+            all_books = get_all_books(graph)
+            if not all_books.empty:
+                st.metric("📚 Books", len(all_books))
+                st.metric("✍️ Authors", all_books['Author'].nunique())
+                st.metric("🏷️ Genres", all_books['Genre'].nunique())
+        
+        st.markdown("---")
+        
+        with st.expander("⚙️ System Info", expanded=False):
+            st.write(f"**Data:** `{os.path.basename(DATA_PATH)}`")
+            st.write(f"**Ontology:** `{os.path.basename(ONTOLOGY_PATH)}`")
+            st.write(f"**Images:** `{os.path.basename(IMAGE_DIR)}`")
     
     # Verify file paths
     file_issues = verify_file_paths()
     if file_issues:
         for issue in file_issues:
             st.error(issue)
-        st.stop()  # Stop execution
+        st.stop()
     
     # Initialize session state
     if 'initialized' not in st.session_state:
         st.session_state.initialized = False
         st.session_state.load_error = None
     
-    # Use a placeholder to display loading progress
     loading_placeholder = st.empty()
     
     if not st.session_state.initialized:
@@ -1698,11 +2347,9 @@ def main():
             st.info("📚 Initializing book catalog and reasoning engine...")
             progress_bar = st.progress(0)
             
-            # Step 1: Load RDF data
             progress_bar.progress(20)
             st.info("Loading book data...")
             
-            # Load data directly
             g = load_data()
             
             if g is None or len(g) == 0:
@@ -1713,7 +2360,6 @@ def main():
             progress_bar.progress(50)
             st.info("Verifying data...")
             
-            # Validate loaded data
             try:
                 test_query = list(g.query("""
                     PREFIX : <http://www.example.org/bookstore#>
@@ -1735,17 +2381,14 @@ def main():
                 st.error(f"Query verification failed: {e}")
                 return
             
-            # Step 2: Run reasoning
             progress_bar.progress(70)
             st.info("Running reasoning engine...")
             
             try:
-                # Create a copy of the graph for reasoning
                 inferred = rdflib.Graph()
                 for triple in g:
                     inferred.add(triple)
                 
-                # Run OWL reasoning (may take some time)
                 with st.spinner("Running OWL reasoner (this may take a moment)..."):
                     reasoner = RDFS_OWLRL_Semantics(inferred, axioms=True, daxioms=False, rdfs=True)
                     reasoner.closure()
@@ -1769,21 +2412,18 @@ def main():
             progress_bar.progress(100)
             st.session_state.initialized = True
             
-            # Brief delay so users can see the completion message
             import time
             time.sleep(0.5)
             loading_placeholder.empty()
-            st.rerun()  # Rerun to display the full interface
+            st.rerun()
             return
     
     # Normal application interface
-    # Retrieve active graph
     if st.session_state.get("reasoning_enabled", False):
         graph = st.session_state.get("inferred_graph")
     else:
         graph = st.session_state.get("original_graph")
     
-    # Final validation
     if graph is None:
         st.error("Graph is None - initialization failed")
         if st.button("Retry Loading"):
@@ -1791,46 +2431,35 @@ def main():
             st.rerun()
         return
     
-   # Display reasoning status
-    if st.session_state.get("reasoning_enabled", False):
-        st.sidebar.success("🔮 OWL Reasoning: Enabled")
-        st.sidebar.info("All searches use reasoning-enhanced semantic relationships")
-    else:
-        st.sidebar.warning("⚠️ OWL Reasoning: Disabled (basic mode)")
-    
-    # Custom CSS
-    st.markdown("""
-    <style>
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        font-weight: bold;
-    }
-    .stButton > button:hover {
-        transform: scale(1.02);
-        transition: 0.3s;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
-    # Show Homepage content
+    # Main content
     show_homepage()
     
-    # Add a divider
+    # Divider and advanced search
     st.markdown("---")
-    st.markdown("## 🔍 Advanced Search")
-    st.markdown("Use the tools below to search for books by keyword, price, genre or author!")
+    show_search_content(graph)
     
-    # Show Search content (modified to work without sidebar)
-    show_search_content(graph)  # You'll need to create this function
-    
-    # Footer
-    st.markdown("---")
-    st.markdown(
-        "<div style='text-align: center; color: #666;'><strong>Semantic Book Store</strong> | Powered by RDFlib, Streamlit | RDF + SPARQL + OWL Inference</div>",
-        unsafe_allow_html=True
-    )
+    # ===== FOOTER =====
+    st.markdown("""
+    <div class="store-footer">
+        <div>
+            <span class="brand">Semantic Web-Based <span class="accent">Book Search and Recommendation System</span></span>
+            <span style="color: #d1d5db; margin: 0 0.75rem;">|</span>
+            <span style="font-size: 0.9rem;">Semantic Web-Based Book Discovery</span>
+        </div>
+        <div class="footer-links">
+            <span>Powered by RDFlib</span>
+            <span>•</span>
+            <span>SPARQL</span>
+            <span>•</span>
+            <span>OWL Inference</span>
+            <span>•</span>
+            <span>Streamlit</span>
+        </div>
+        <div style="margin-top: 0.75rem; font-size: 0.8rem; color: #9ca3af;">
+            © 2026 Semantic Web-Based Book Search and Recommendation System
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
