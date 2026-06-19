@@ -2213,25 +2213,6 @@ def show_search_content(graph):
 # ===========================================
 # Main Application 
 # ===========================================
-def verify_file_paths():
-    """Verify that all required files exist"""
-    issues = []
-    
-    if not os.path.exists(DATA_PATH):
-        issues.append(f"Data file not found: {DATA_PATH}")
-    else:
-        st.sidebar.success(f"✅ Data file found: {os.path.basename(DATA_PATH)}")
-    
-    if not os.path.exists(ONTOLOGY_PATH):
-        issues.append(f"Ontology file not found: {ONTOLOGY_PATH}")
-    else:
-        st.sidebar.success(f"✅ Ontology file found: {os.path.basename(ONTOLOGY_PATH)}")
-    
-    if not os.path.exists(IMAGE_DIR):
-        st.sidebar.warning(f"Image directory not found: {IMAGE_DIR}")
-    
-    return issues
-
 @st.cache_resource
 def load_books_graph_only():
     """Load original RDF data only (for testing)"""
@@ -2281,6 +2262,80 @@ def main():
         page_icon="📚",
         initial_sidebar_state="expanded"
     )
+    
+    # Initialize session state
+    if 'initialized' not in st.session_state:
+        st.session_state.initialized = False
+        st.session_state.load_error = None
+    
+    loading_placeholder = st.empty()
+    
+    if not st.session_state.initialized:
+        with loading_placeholder.container():
+            progress_bar = st.progress(0)
+            st.info("Initializing book catalog and reasoning engine...")            
+            progress_bar.progress(20)
+            st.info("Loading book data...")
+            progress_bar.progress(50)
+            st.info("Verifying data...")
+            
+            g = load_data()
+            
+            if g is None or len(g) == 0:
+                st.error("Failed to load data - graph is empty")
+                st.session_state.load_error = "Empty graph"
+                return
+            
+            try:
+                test_query = list(g.query("""
+                    PREFIX : <http://www.example.org/bookstore#>
+                    SELECT ?title ?author WHERE { 
+                        ?book a :Book .
+                        ?book :title ?title .
+                        ?book :author ?author .
+                    } LIMIT 5
+                """))
+                
+                if not test_query:
+                    st.error("No books found in the catalog")
+                    st.info("Please check that books.ttl contains valid :Book entries")
+                    return
+                
+            except Exception as e:
+                st.error(f"Query verification failed: {e}")
+                return
+            
+            progress_bar.progress(70)
+            
+            try:
+                inferred = rdflib.Graph()
+                for triple in g:
+                    inferred.add(triple)
+                
+                with st.spinner("Running OWL reasoner (this may take a moment)..."):
+                    reasoner = RDFS_OWLRL_Semantics(inferred, axioms=True, daxioms=False, rdfs=True)
+                    reasoner.closure()
+                    
+                    inferred_triples = len(inferred) - len(g)
+                
+                st.session_state.original_graph = g
+                st.session_state.inferred_graph = inferred
+                st.session_state.reasoning_enabled = True
+                
+            except Exception as e:
+                st.warning(f"Reasoning failed: {e}. Running in basic mode.")
+                st.session_state.original_graph = g
+                st.session_state.inferred_graph = g
+                st.session_state.reasoning_enabled = False
+            
+            progress_bar.progress(100)
+            st.session_state.initialized = True
+            
+            import time
+            time.sleep(0.5)
+            loading_placeholder.empty()
+            st.rerun()
+            return
     
     # Normal application interface
     if st.session_state.get("reasoning_enabled", False):
