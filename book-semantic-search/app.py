@@ -1970,7 +1970,6 @@ def show_search_content(graph):
     
     # === Search by Keyword ===
     with tab1:
-        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
         st.subheader("Keyword Search")
         keyword = st.text_input("Enter a book title, author name, or genre:", "Harry Potter", key="keyword_search")
         if keyword:
@@ -1995,7 +1994,6 @@ def show_search_content(graph):
     
     # === Price Range ===
     with tab2:
-        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
         st.subheader("Filter by Price")
         col1, col2 = st.columns(2)
         with col1:
@@ -2033,7 +2031,6 @@ def show_search_content(graph):
     
     # === Browse by Genre ===
     with tab3:
-        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
         st.subheader("Browse by Genre")
         genres = ["Fantasy", "Mystery", "Romance", "YoungAdult", "Thriller", 
                   "History", "Biography", "Technical", "Cookbook", "Education"]
@@ -2076,7 +2073,6 @@ def show_search_content(graph):
     
     # === Browse by Author ===
     with tab4:
-        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
         st.subheader("Browse by Author")
         authors_list = [
             "J.K. Rowling", "George R.R. Martin", "J.R.R. Tolkien",
@@ -2187,7 +2183,6 @@ def show_search_content(graph):
     
     # === Similar Books ===
     with tab5:
-        st.markdown('<div style="background:white; padding:1.5rem; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.04);">', unsafe_allow_html=True)
         st.subheader("Find Similar Books")
         st.caption("Based on same author and genre (powered by OWL reasoning)")
         
