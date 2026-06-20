@@ -1643,11 +1643,10 @@ def get_book_cover(book_title):
         "The Fellowship of the Ring": "TheFellowshipoftheRing",
         
         # =========================================
-        # MYSTERY (5 books)
+        # MYSTERY (4 books)
         # =========================================
         "The Da Vinci Code": "TheDaVinciCode",
         "Angels & Demons": "Angels&Demons",
-        "Gone Girl": "GoneGirl",
         "The Girl with the Dragon Tattoo": "TheGirlWithDragonTattoo",
         "The Silence of the Lambs": "TheSilenceOfTheLambs",
         
@@ -1672,6 +1671,7 @@ def get_book_cover(book_title):
         # =========================================
         "The Shining": "TheShining",
         "The Silent Patient": "TheSilentPatient",
+        "Gone Girl": "GoneGirl",
         
         # =========================================
         # HISTORY (4 books)
@@ -2314,6 +2314,10 @@ def main():
                     reasoner.closure()
                     
                     inferred_triples = len(inferred) - len(g)
+                    if inferred_triples > 0:
+                        st.success(f"✅ Added {inferred_triples} inferred triples")
+                    else:
+                        st.info("No additional inferences made")
                 
                 st.session_state.original_graph = g
                 st.session_state.inferred_graph = inferred
