@@ -558,62 +558,61 @@ def css():
 # ====================================================
 SYNONYM_MAP = {
     "Fantasy": [
-        "fantasy", "magic", "wizard", "sorcerer", "witch", "curse",
-        "elf", "dwarf", "knight", "castle", "enchanted",
-        "mythical", "legend", "fairy", "tale", "adventure"
+        "magic", "wizard", "sorcerer", "witch", "curse", "spell",
+        "elf", "dwarf", "knight", "castle", "enchanted", "mythical", 
+        "legend", "fairy", "tale", "adventure"
     ],
     
     "Mystery": [
-        "mystery", "detective", "crime", "thriller", "suspense",
-        "whodunnit", "investigation", "murder", "clue", "puzzle"
+        "detective", "crime", "thriller", "suspense", "unknown",
+        "investigation", "murder", "clue", "puzzle"
     ],
     
     "Romance": [
-        "romance", "love", "couple", "relationship", "heart",
-        "passion", "affair", "wedding", "affection", "soul mate"
+        "love", "couple", "relationship", "heart", "passion", 
+        "affair", "wedding", "affection", "soul mate", "marriage",
+        "marry"
     ],
     
     "Young Adult": [
-        "young adult", "adventure", "speculative", "dystopian",
-        "teen", "youngster"
+        "adventure", "speculative", "dystopian", "teen", "youngster"
     ],
     
     "Thriller": [
-        "thriller", "suspense", "psychological", "horror", "ghost",
-        "super natural", "scary", "spooky", "monster", "intense"
+        "suspense", "psychological", "horror", "ghost","super natural", 
+        "scary", "spooky", "monster", "intense"
     ],
     
     "History": [
-        "history", "historical", "ancient", "medieval", "modern",
+        "historical", "ancient", "medieval", "modern", "world", 
         "world war", "civilization", "empire", "archaeology", "documentary"
     ],
     
     "Biography": [
-        "biography", "memoir", "autobiography", "life story",
-        "diary", "journey", "inspirational", "journal", "real life"
+        "memoir", "autobiography", "life story", "diary", "journey", 
+        "inspirational", "journal", "real life"
     ],
     
     "Technical": [
-        "technical", "coding", "code", "programming", "computer",
-        "software", "algorithm", "developer", "engineering",
-        "clean code", "python", "java", "c++", "data structure", 
-        "machine learning", "ai", "cloud", "artificial intelligence"
+        "coding", "code", "programming", "computer", "software", 
+        "algorithm", "developer", "engineering", "clean code", "python", 
+        "java", "c++", "data structure", "machine learning", "cloud", 
+        "artificial intelligence"
     ],
     
     "Cookbook": [
-        "cookbook", "delicacy", "food", "culinary", "recipe",
-        "kitchen", "chef", "cuisine", "baking", "cooking", "gourmet"
+        "delicacy", "food", "culinary", "recipe", "kitchen", 
+        "chef", "cuisine", "baking", "cooking", "gourmet", "cook"
     ],
     
     "Education": [
-        "education", "learning", "teaching", "school", "study",
-        "knowledge", "mindset", "psychology", "motivation", 
-        "inspiration", "improvement"
+        "learning", "teaching", "school", "study", "knowledge", 
+        "mindset", "psychology", "motivation", "inspiration", "improvement"
     ],
 }
 
 # ====================================================
-# Build reverse synonym lookup (e.g., "wizard" <-> "magic")
+# Build reverse synonym search
 # ====================================================
 def build_reverse_synonym_map():
     """Create a mapping from any synonym to its primary category/genre"""
