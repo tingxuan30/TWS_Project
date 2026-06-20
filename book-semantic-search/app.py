@@ -565,13 +565,12 @@ SYNONYM_MAP = {
     
     "Mystery": [
         "detective", "crime", "thriller", "suspense", "unknown",
-        "investigation", "murder", "clue", "puzzle"
+        "investigation", "murder", "clue"
     ],
     
     "Romance": [
-        "love", "couple", "relationship", "heart", "passion", 
-        "affair", "wedding", "affection", "soul mate", "marriage",
-        "marry"
+        "love", "couple", "relationship", "heart", "passion", "affair", 
+        "wedding", "affection", "soul mate", "marriage", "marry"
     ],
     
     "Young Adult": [
@@ -579,7 +578,7 @@ SYNONYM_MAP = {
     ],
     
     "Thriller": [
-        "suspense", "psychological", "horror", "ghost","super natural", 
+        "suspense", "horror", "ghost","super natural", 
         "scary", "spooky", "monster", "intense"
     ],
     
@@ -594,10 +593,9 @@ SYNONYM_MAP = {
     ],
     
     "Technical": [
-        "coding", "code", "programming", "computer", "software", 
-        "algorithm", "developer", "engineering", "clean code", "python", 
-        "java", "c++", "data structure", "machine learning", "cloud", 
-        "artificial intelligence"
+        "coding", "code", "programming", "computer", "software", "algorithm", 
+        "developer", "engineering", "python", "java", "c++", "data structure", 
+        "machine learning", "cloud", "artificial intelligence"
     ],
     
     "Cookbook": [
@@ -607,7 +605,7 @@ SYNONYM_MAP = {
     
     "Education": [
         "learning", "teaching", "school", "study", "knowledge", 
-        "mindset", "psychology", "motivation", "inspiration", "improvement"
+        "mindset", "motivation", "inspiration", "improvement"
     ],
 }
 
