@@ -2254,7 +2254,7 @@ def load_books_graph_only():
 
 def main():
     st.set_page_config(
-        page_title="Semantic Bookstore", 
+        page_title="Semantic Web-Based Book Search and Recommendation System", 
         layout="wide", 
         page_icon="📚",
         initial_sidebar_state="expanded"
