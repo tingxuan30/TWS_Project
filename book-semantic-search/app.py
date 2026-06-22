@@ -1487,7 +1487,6 @@ def get_recommendations_by_description(description, category, graph):
 
     # If no genres detected, use fallback
     if not target_genres:
-        st.info("No specific genres detected. Showing general recommendations.")
         return simple_keyword_recommendation(description, category, graph)
 
     # Extract meaningful keywords (skip stop words)
