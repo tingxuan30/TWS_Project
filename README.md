@@ -20,12 +20,12 @@ Update all into the ternimal
 
 1）python -m pip install --upgrade pip
 
-2) python -m pip install streamlit rdflib owlready2 pandas
+2) python -m pip install streamlit rdflib pandas pillow owlrl
 
 ### -----------------------------------------------
 ### Step 4: Verify Installation
 
-1）pip list | findstr "streamlit rdflib owlready pandas"
+1）pip list | findstr "streamlit rdflib pandas pillow owlrl"
 
 ### -----------------------------------------------
 ### Step 5: Run the Application
@@ -36,10 +36,6 @@ After running the code, please enter your email address in the terminal, and the
 
 1）python -m streamlit run app.py
 
-### -----------------------------------------------
-### Step 6: Clear Cache (terminal)
-
-1）python -m streamlit cache clear
 
 
 
