@@ -1782,7 +1782,7 @@ def show_homepage():
     # Select Genre Section
     with col2:
         st.markdown('<div class="section-label">Filter by genre</div>', unsafe_allow_html=True)
-        categories = ["All", "NonFiction", "Fantasy", "Mystery", "Romance", "YoungAdult", 
+        categories = ["All", "Fantasy", "Mystery", "Romance", "YoungAdult", 
                     "Thriller", "History", "Biography", "Technical", "Cookbook", "Education"]
         category = st.selectbox(
             "",
